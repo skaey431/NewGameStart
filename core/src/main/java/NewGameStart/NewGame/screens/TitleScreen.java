@@ -21,7 +21,7 @@ public class TitleScreen extends BaseScreen {
         stage.addActor(table);
 
         // 버튼 생성
-        TextButton newGameButton = new TextButton("새 게임aaaa", skin);
+        TextButton newGameButton = new TextButton("새 게임", skin);
         TextButton continueButton = new TextButton("이어하기", skin);
         TextButton optionsButton = new TextButton("옵션", skin);
 
