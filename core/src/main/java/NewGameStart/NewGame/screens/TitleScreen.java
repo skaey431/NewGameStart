@@ -30,7 +30,7 @@ public class TitleScreen extends BaseScreen {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 System.out.println("새 게임 시작");
-                // TODO: 새 게임 화면으로 전환
+                game.setScreen(new GameScreen(game));
             }
         });
 
@@ -38,6 +38,7 @@ public class TitleScreen extends BaseScreen {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 System.out.println("이어하기 클릭");
+                game.setScreen(new GameScreen(game));
                 // TODO: 저장된 게임 불러오기
             }
         });
@@ -46,6 +47,7 @@ public class TitleScreen extends BaseScreen {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 System.out.println("옵션 클릭");
+                game.setScreen(new OptionScreen(game));
                 // TODO: 옵션 화면으로 전환
             }
         });
