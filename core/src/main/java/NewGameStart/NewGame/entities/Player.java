@@ -1,51 +1,73 @@
 package NewGameStart.NewGame.entities;
 
+import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.physics.box2d.BodyDef;
-import com.badlogic.gdx.physics.box2d.FixtureDef;
-import com.badlogic.gdx.physics.box2d.PolygonShape;
-import com.badlogic.gdx.physics.box2d.World;
 
 public class Player extends BaseEntity {
 
+    public boolean isOnGround = false;
+
     public Player(World world, float x, float y) {
         super(world);
+        createBody();
         body.setTransform(x, y, 0);
+
+        // ★ ContactListener에서 Player 찾기 위함
+        body.setUserData(this);
     }
 
     @Override
     protected void createBody() {
+        // 메인 바디
         BodyDef bd = new BodyDef();
         bd.type = BodyDef.BodyType.DynamicBody;
-        bd.fixedRotation = true; // 어지럽게 회전 방지
-        body = world.createBody(bd);
+        body.setType(BodyDef.BodyType.DynamicBody);
 
-        PolygonShape shape = new PolygonShape();
-        shape.setAsBox(0.4f, 0.9f);
+        PolygonShape mainShape = new PolygonShape();
+        mainShape.setAsBox(0.5f, 1f);
 
-        FixtureDef fd = new FixtureDef();
-        fd.shape = shape;
-        fd.density = 1f;
-        fd.friction = 0.2f;
+        FixtureDef mainFD = new FixtureDef();
+        mainFD.shape = mainShape;
+        mainFD.density = 1f;
+        mainFD.friction = 0.2f;
+        body.createFixture(mainFD);
+        mainShape.dispose();
 
-        body.createFixture(fd);
-        shape.dispose();
+        // ★ FOOT SENSOR (바닥 체크 용)
+        PolygonShape footShape = new PolygonShape();
+        footShape.setAsBox(
+            0.45f,
+            0.1f,
+            new Vector2(0, -1f), // 발 아래 위치
+            0
+        );
+
+        FixtureDef footFD = new FixtureDef();
+        footFD.shape = footShape;
+        footFD.isSensor = true;
+
+        // Fixture를 만든 다음에 userData 설정 (중요)
+        Fixture footFixture = body.createFixture(footFD);
+        footFixture.setUserData("foot");
+
+        footShape.dispose();
     }
 
+
     public void moveLeft() {
-        body.setLinearVelocity(-5f, body.getLinearVelocity().y);
+        body.setLinearVelocity(-3f, body.getLinearVelocity().y);
     }
 
     public void moveRight() {
-        body.setLinearVelocity(5f, body.getLinearVelocity().y);
+        body.setLinearVelocity(3f, body.getLinearVelocity().y);
     }
 
     public void jump() {
-        float jumpForce = 13f;
-        body.applyLinearImpulse(new Vector2(0, jumpForce), body.getWorldCenter(), true);
+        if (isOnGround) {
+            body.setLinearVelocity(body.getLinearVelocity().x, 8f);
+        }
     }
 
     @Override
     public void update() {}
 }
-

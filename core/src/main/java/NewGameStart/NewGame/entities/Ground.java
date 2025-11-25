@@ -1,6 +1,5 @@
 package NewGameStart.NewGame.entities;
 
-
 import com.badlogic.gdx.physics.box2d.*;
 
 public class Ground extends BaseEntity {
@@ -12,7 +11,8 @@ public class Ground extends BaseEntity {
 
         this.w = w;
         this.h = h;
-        System.out.println("Grounded");
+
+        createBody();  // 이제 여기서 직접 생성됨
         body.setTransform(x, y, 0);
     }
 
@@ -20,7 +20,7 @@ public class Ground extends BaseEntity {
     protected void createBody() {
         BodyDef bd = new BodyDef();
         bd.type = BodyDef.BodyType.StaticBody;
-        body = world.createBody(bd);
+        body.setType(BodyDef.BodyType.StaticBody);
 
         PolygonShape shape = new PolygonShape();
         shape.setAsBox(w / 2f, h / 2f);
