@@ -6,19 +6,18 @@ import com.badlogic.gdx.math.Vector2;
 public class Player extends BaseEntity {
 
     public boolean isOnGround = false;
+    private boolean isRecovering = false; // ★ 자동 기립 중인지 여부
 
     public Player(World world, float x, float y) {
         super(world);
         createBody();
         body.setTransform(x, y, 0);
 
-        // ★ ContactListener에서 Player 찾기 위함
         body.setUserData(this);
     }
 
     @Override
     protected void createBody() {
-        // 메인 바디
         BodyDef bd = new BodyDef();
         bd.type = BodyDef.BodyType.DynamicBody;
         body.setType(BodyDef.BodyType.DynamicBody);
@@ -33,12 +32,11 @@ public class Player extends BaseEntity {
         body.createFixture(mainFD);
         mainShape.dispose();
 
-        // ★ FOOT SENSOR (바닥 체크 용)
         PolygonShape footShape = new PolygonShape();
         footShape.setAsBox(
             0.45f,
             0.1f,
-            new Vector2(0, -1f), // 발 아래 위치
+            new Vector2(0, -1f),
             0
         );
 
@@ -46,13 +44,11 @@ public class Player extends BaseEntity {
         footFD.shape = footShape;
         footFD.isSensor = true;
 
-        // Fixture를 만든 다음에 userData 설정 (중요)
         Fixture footFixture = body.createFixture(footFD);
         footFixture.setUserData("foot");
 
         footShape.dispose();
     }
-
 
     public void moveLeft() {
         body.setLinearVelocity(-3f, body.getLinearVelocity().y);
@@ -68,6 +64,35 @@ public class Player extends BaseEntity {
         }
     }
 
-    @Override
-    public void update() {}
+    // ★ UP 키 한 번 → 자동 기립 시작
+    public void startRecovering() {
+        isRecovering = true;
+    }
+
+    // 호출될 때마다 회전 진행
+    public void update() {
+        if (isRecovering) {
+            float angle = body.getAngle();
+            float target = 0f;
+            float diff = target - angle;
+
+            // 충분히 세워졌으면 자동 종료
+            if (Math.abs(diff) < 0.05f) {
+                body.setTransform(body.getPosition(), 0f);
+                body.setAngularVelocity(0);
+                isRecovering = false;
+                return;
+            }
+
+            // 땅에 닿아 회전이 막히므로 약간 들어올림
+            body.setTransform(
+                body.getPosition().x,
+                body.getPosition().y + 0.05f,
+                angle
+            );
+
+            // 자연스러운 회전(토크 적용)
+            body.applyTorque(diff * 15f, true);
+        }
+    }
 }

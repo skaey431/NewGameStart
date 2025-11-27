@@ -37,7 +37,6 @@ public class WorldManager {
                     Player player = (Player) foot.getBody().getUserData();
                     if (player == null) return;
 
-                    // StaticBody는 대부분 바닥
                     if (other.getBody().getType() == BodyDef.BodyType.StaticBody) {
                         player.isOnGround = isBegin;
                     }
