@@ -13,22 +13,24 @@ public class Player {
     public boolean isTouchingWall = false;
     public boolean isTouchingCeiling = false;
 
-    private boolean isClinging = false;
+    public boolean isClinging = false;
 
     private final float MOVE_SPEED = 5f;
     private final float JUMP_FORCE = 9f;
 
     public Player(World world, float x, float y) {
 
+        // 본체 생성
         BodyDef def = new BodyDef();
         def.type = BodyDef.BodyType.DynamicBody;
         def.position.set(x, y);
+
         body = world.createBody(def);
         body.setUserData(this);
 
-        body.setFixedRotation(true);
+        body.setFixedRotation(true);   // ✔ 회전 금지
 
-        // 본체
+        // --- 몸체 ---
         PolygonShape main = new PolygonShape();
         main.setAsBox(0.3f, 0.5f);
 
@@ -37,11 +39,11 @@ public class Player {
         fd.density = 1f;
         fd.friction = 0.3f;
 
-        Fixture mainFx = body.createFixture(fd);
-        mainFx.setUserData("player");
+        Fixture mainFix = body.createFixture(fd);
+        mainFix.setUserData("player");
         main.dispose();
 
-        // --- foot sensor (바닥) ---
+        // --- foot ---
         PolygonShape foot = new PolygonShape();
         foot.setAsBox(0.25f, 0.05f, new Vector2(0, -0.55f), 0);
 
@@ -53,7 +55,7 @@ public class Player {
         footFx.setUserData("foot");
         foot.dispose();
 
-        // --- head sensor (천장) ---
+        // --- head ---
         PolygonShape head = new PolygonShape();
         head.setAsBox(0.25f, 0.05f, new Vector2(0, 0.55f), 0);
 
@@ -66,7 +68,6 @@ public class Player {
         head.dispose();
     }
 
-
     public void update(float delta) {
 
         boolean left = Gdx.input.isKeyPressed(Input.Keys.LEFT);
@@ -76,7 +77,7 @@ public class Player {
 
         Vector2 vel = body.getLinearVelocity();
 
-        // 벽 또는 천장 접촉 중 입력 → 클링
+        // 클링 시작 조건
         if ((isTouchingWall && (left || right || up || down))
             || (isTouchingCeiling && up)) {
 
@@ -84,7 +85,7 @@ public class Player {
             body.setGravityScale(0);
         }
 
-        // 클링 해제 조건: 벽/천장 접촉 모두 없으면 해제
+        // 클링 해제 조건
         if (!isTouchingWall && !isTouchingCeiling) {
             isClinging = false;
             body.setGravityScale(1);

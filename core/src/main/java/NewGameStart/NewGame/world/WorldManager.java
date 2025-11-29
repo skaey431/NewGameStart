@@ -9,73 +9,108 @@ public class WorldManager {
     private World world;
 
     public WorldManager() {
+
         world = new World(new Vector2(0, -9.8f), true);
 
-        createWalls();
+        createDefaultWalls();
+        setupContactListener();
+    }
+
+    private void setupContactListener() {
 
         world.setContactListener(new ContactListener() {
 
             @Override
-            public void beginContact(Contact contact) {
-                Fixture a = contact.getFixtureA();
-                Fixture b = contact.getFixtureB();
-
-                handleContact(a, b, true);
-                handleContact(b, a, true);
+            public void beginContact(Contact c) {
+                Fixture a = c.getFixtureA();
+                Fixture b = c.getFixtureB();
+                process(a, b, true);
+                process(b, a, true);
             }
 
             @Override
-            public void endContact(Contact contact) {
-                Fixture a = contact.getFixtureA();
-                Fixture b = contact.getFixtureB();
-
-                handleContact(a, b, false);
-                handleContact(b, a, false);
+            public void endContact(Contact c) {
+                Fixture a = c.getFixtureA();
+                Fixture b = c.getFixtureB();
+                process(a, b, false);
+                process(b, a, false);
             }
 
-            private void handleContact(Fixture fx, Fixture other, boolean begin) {
+            private void process(Fixture fx, Fixture other, boolean begin) {
+                if (fx == null || fx.getUserData() == null) return;
 
-                if (other.getBody().getType() != BodyDef.BodyType.StaticBody)
-                    return;
+                if (!(fx.getBody().getUserData() instanceof Player)) return;
 
-                Object data = fx.getUserData();
-                if (data == null) return;
+                Player p = (Player) fx.getBody().getUserData();
 
-                Player player = (Player) fx.getBody().getUserData();
-                if (player == null) return;
+                switch (fx.getUserData().toString()) {
 
-                switch (data.toString()) {
                     case "foot":
-                        player.isOnGround = begin;
+                        p.isOnGround = begin;
                         break;
+
                     case "head":
-                        player.isTouchingCeiling = begin;
+                        p.isTouchingCeiling = begin;
                         break;
+
                     case "player":
-                        player.isTouchingWall = begin;
+                        if (!"specialWall".equals(other.getUserData()))
+                            if (other.getBody().getType() == BodyDef.BodyType.StaticBody)
+                                p.isTouchingWall = begin;
                         break;
                 }
             }
 
-            @Override public void preSolve(Contact contact, Manifold oldManifold) {}
-            @Override public void postSolve(Contact contact, ContactImpulse impulse) {}
+            @Override
+            public void preSolve(Contact c, Manifold m) {
+
+                Fixture A = c.getFixtureA();
+                Fixture B = c.getFixtureB();
+
+                if (A.getUserData() == null || B.getUserData() == null) return;
+
+                boolean special =
+                    A.getUserData().equals("specialWall") ||
+                        B.getUserData().equals("specialWall");
+
+                boolean player =
+                    A.getUserData().equals("player") ||
+                        B.getUserData().equals("player");
+
+                if (special && player) {
+
+                    Player p = null;
+
+                    if (A.getBody().getUserData() instanceof Player)
+                        p = (Player) A.getBody().getUserData();
+
+                    if (B.getBody().getUserData() instanceof Player)
+                        p = (Player) B.getBody().getUserData();
+
+                    if (p == null) return;
+
+                    // ⭐ 클링 상태일 때만 충돌 허용
+                    c.setEnabled(p.isClinging);
+                }
+            }
+
+            @Override public void postSolve(Contact c, ContactImpulse i) {}
         });
     }
 
-
-    private void createWalls() {
-        createStaticBox(-5f, 3f, 1f, 6f);   // 왼벽
-        createStaticBox(5f, 3f, 1f, 6f);    // 오른벽
-        createStaticBox(0f, 0f, 10f, 1f);   // 바닥
-        createStaticBox(0f, 10f, 10f, 1f);  // 천장
+    private void createDefaultWalls() {
+        createStaticBox(-5, 3, 1, 6);
+        createStaticBox(5, 3, 1, 6);
+        createStaticBox(0, 0, 10, 1);
+        createStaticBox(0, 10, 10, 1);
     }
 
     private void createStaticBox(float x, float y, float hw, float hh) {
-        BodyDef def = new BodyDef();
-        def.type = BodyDef.BodyType.StaticBody;
-        def.position.set(x, y);
+        BodyDef bd = new BodyDef();
+        bd.type = BodyDef.BodyType.StaticBody;
+        bd.position.set(x, y);
 
-        Body body = world.createBody(def);
+        Body b = world.createBody(bd);
 
         PolygonShape shape = new PolygonShape();
         shape.setAsBox(hw, hh);
@@ -84,14 +119,15 @@ public class WorldManager {
         fd.shape = shape;
         fd.friction = 0.5f;
 
-        body.createFixture(fd);
+        b.createFixture(fd);
+
         shape.dispose();
     }
 
     public World getWorld() { return world; }
 
     public void update() {
-        world.step(1 / 60f, 6, 2);
+        world.step(1/60f, 6, 2);
     }
 
     public void dispose() {
