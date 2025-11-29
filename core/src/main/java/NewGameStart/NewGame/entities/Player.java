@@ -1,98 +1,118 @@
 package NewGameStart.NewGame.entities;
 
-import com.badlogic.gdx.physics.box2d.*;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.physics.box2d.*;
 
-public class Player extends BaseEntity {
+public class Player {
+
+    private Body body;
 
     public boolean isOnGround = false;
-    private boolean isRecovering = false; // ★ 자동 기립 중인지 여부
+    public boolean isTouchingWall = false;
+    public boolean isTouchingCeiling = false;
+
+    private boolean isClinging = false;
+
+    private final float MOVE_SPEED = 5f;
+    private final float JUMP_FORCE = 9f;
 
     public Player(World world, float x, float y) {
-        super(world);
-        createBody();
-        body.setTransform(x, y, 0);
 
+        BodyDef def = new BodyDef();
+        def.type = BodyDef.BodyType.DynamicBody;
+        def.position.set(x, y);
+        body = world.createBody(def);
         body.setUserData(this);
+
+        body.setFixedRotation(true);
+
+        // 본체
+        PolygonShape main = new PolygonShape();
+        main.setAsBox(0.3f, 0.5f);
+
+        FixtureDef fd = new FixtureDef();
+        fd.shape = main;
+        fd.density = 1f;
+        fd.friction = 0.3f;
+
+        Fixture mainFx = body.createFixture(fd);
+        mainFx.setUserData("player");
+        main.dispose();
+
+        // --- foot sensor (바닥) ---
+        PolygonShape foot = new PolygonShape();
+        foot.setAsBox(0.25f, 0.05f, new Vector2(0, -0.55f), 0);
+
+        FixtureDef footFd = new FixtureDef();
+        footFd.shape = foot;
+        footFd.isSensor = true;
+
+        Fixture footFx = body.createFixture(footFd);
+        footFx.setUserData("foot");
+        foot.dispose();
+
+        // --- head sensor (천장) ---
+        PolygonShape head = new PolygonShape();
+        head.setAsBox(0.25f, 0.05f, new Vector2(0, 0.55f), 0);
+
+        FixtureDef headFd = new FixtureDef();
+        headFd.shape = head;
+        headFd.isSensor = true;
+
+        Fixture headFx = body.createFixture(headFd);
+        headFx.setUserData("head");
+        head.dispose();
     }
 
-    @Override
-    protected void createBody() {
-        BodyDef bd = new BodyDef();
-        bd.type = BodyDef.BodyType.DynamicBody;
-        body.setType(BodyDef.BodyType.DynamicBody);
 
-        PolygonShape mainShape = new PolygonShape();
-        mainShape.setAsBox(0.5f, 1f);
+    public void update(float delta) {
 
-        FixtureDef mainFD = new FixtureDef();
-        mainFD.shape = mainShape;
-        mainFD.density = 1f;
-        mainFD.friction = 0.2f;
-        body.createFixture(mainFD);
-        mainShape.dispose();
+        boolean left = Gdx.input.isKeyPressed(Input.Keys.LEFT);
+        boolean right = Gdx.input.isKeyPressed(Input.Keys.RIGHT);
+        boolean up = Gdx.input.isKeyPressed(Input.Keys.UP);
+        boolean down = Gdx.input.isKeyPressed(Input.Keys.DOWN);
 
-        PolygonShape footShape = new PolygonShape();
-        footShape.setAsBox(
-            0.45f,
-            0.1f,
-            new Vector2(0, -1f),
-            0
-        );
+        Vector2 vel = body.getLinearVelocity();
 
-        FixtureDef footFD = new FixtureDef();
-        footFD.shape = footShape;
-        footFD.isSensor = true;
+        // 벽 또는 천장 접촉 중 입력 → 클링
+        if ((isTouchingWall && (left || right || up || down))
+            || (isTouchingCeiling && up)) {
 
-        Fixture footFixture = body.createFixture(footFD);
-        footFixture.setUserData("foot");
+            isClinging = true;
+            body.setGravityScale(0);
+        }
 
-        footShape.dispose();
-    }
+        // 클링 해제 조건: 벽/천장 접촉 모두 없으면 해제
+        if (!isTouchingWall && !isTouchingCeiling) {
+            isClinging = false;
+            body.setGravityScale(1);
+        }
 
-    public void moveLeft() {
-        body.setLinearVelocity(-3f, body.getLinearVelocity().y);
-    }
+        // 클링 중 이동
+        if (isClinging) {
+            float vx = 0, vy = 0;
 
-    public void moveRight() {
-        body.setLinearVelocity(3f, body.getLinearVelocity().y);
-    }
+            if (left) vx = -MOVE_SPEED;
+            if (right) vx = MOVE_SPEED;
+            if (up) vy = MOVE_SPEED;
+            if (down) vy = -MOVE_SPEED;
 
-    public void jump() {
-        if (isOnGround) {
-            body.setLinearVelocity(body.getLinearVelocity().x, 8f);
+            body.setLinearVelocity(vx, vy);
+            return;
+        }
+
+        // 일반 이동
+        if (left) body.setLinearVelocity(-MOVE_SPEED, vel.y);
+        else if (right) body.setLinearVelocity(MOVE_SPEED, vel.y);
+        else body.setLinearVelocity(0, vel.y);
+
+        // 점프
+        if (Gdx.input.isKeyJustPressed(Input.Keys.UP) && isOnGround) {
+            body.applyLinearImpulse(new Vector2(0, JUMP_FORCE), body.getWorldCenter(), true);
         }
     }
 
-    // ★ UP 키 한 번 → 자동 기립 시작
-    public void startRecovering() {
-        isRecovering = true;
-    }
-
-    // 호출될 때마다 회전 진행
-    public void update() {
-        if (isRecovering) {
-            float angle = body.getAngle();
-            float target = 0f;
-            float diff = target - angle;
-
-            // 충분히 세워졌으면 자동 종료
-            if (Math.abs(diff) < 0.05f) {
-                body.setTransform(body.getPosition(), 0f);
-                body.setAngularVelocity(0);
-                isRecovering = false;
-                return;
-            }
-
-            // 땅에 닿아 회전이 막히므로 약간 들어올림
-            body.setTransform(
-                body.getPosition().x,
-                body.getPosition().y + 0.05f,
-                angle
-            );
-
-            // 자연스러운 회전(토크 적용)
-            body.applyTorque(diff * 15f, true);
-        }
-    }
+    public Body getBody() { return body; }
 }

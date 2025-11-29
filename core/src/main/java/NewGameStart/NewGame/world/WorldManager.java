@@ -11,6 +11,8 @@ public class WorldManager {
     public WorldManager() {
         world = new World(new Vector2(0, -9.8f), true);
 
+        createWalls();
+
         world.setContactListener(new ContactListener() {
 
             @Override
@@ -18,8 +20,8 @@ public class WorldManager {
                 Fixture a = contact.getFixtureA();
                 Fixture b = contact.getFixtureB();
 
-                checkFoot(a, b, true);
-                checkFoot(b, a, true);
+                handleContact(a, b, true);
+                handleContact(b, a, true);
             }
 
             @Override
@@ -27,19 +29,31 @@ public class WorldManager {
                 Fixture a = contact.getFixtureA();
                 Fixture b = contact.getFixtureB();
 
-                checkFoot(a, b, false);
-                checkFoot(b, a, false);
+                handleContact(a, b, false);
+                handleContact(b, a, false);
             }
 
-            private void checkFoot(Fixture foot, Fixture other, boolean isBegin) {
-                if (foot.getUserData() != null && foot.getUserData().equals("foot")) {
+            private void handleContact(Fixture fx, Fixture other, boolean begin) {
 
-                    Player player = (Player) foot.getBody().getUserData();
-                    if (player == null) return;
+                if (other.getBody().getType() != BodyDef.BodyType.StaticBody)
+                    return;
 
-                    if (other.getBody().getType() == BodyDef.BodyType.StaticBody) {
-                        player.isOnGround = isBegin;
-                    }
+                Object data = fx.getUserData();
+                if (data == null) return;
+
+                Player player = (Player) fx.getBody().getUserData();
+                if (player == null) return;
+
+                switch (data.toString()) {
+                    case "foot":
+                        player.isOnGround = begin;
+                        break;
+                    case "head":
+                        player.isTouchingCeiling = begin;
+                        break;
+                    case "player":
+                        player.isTouchingWall = begin;
+                        break;
                 }
             }
 
@@ -48,9 +62,33 @@ public class WorldManager {
         });
     }
 
-    public World getWorld() {
-        return world;
+
+    private void createWalls() {
+        createStaticBox(-5f, 3f, 1f, 6f);   // 왼벽
+        createStaticBox(5f, 3f, 1f, 6f);    // 오른벽
+        createStaticBox(0f, 0f, 10f, 1f);   // 바닥
+        createStaticBox(0f, 10f, 10f, 1f);  // 천장
     }
+
+    private void createStaticBox(float x, float y, float hw, float hh) {
+        BodyDef def = new BodyDef();
+        def.type = BodyDef.BodyType.StaticBody;
+        def.position.set(x, y);
+
+        Body body = world.createBody(def);
+
+        PolygonShape shape = new PolygonShape();
+        shape.setAsBox(hw, hh);
+
+        FixtureDef fd = new FixtureDef();
+        fd.shape = shape;
+        fd.friction = 0.5f;
+
+        body.createFixture(fd);
+        shape.dispose();
+    }
+
+    public World getWorld() { return world; }
 
     public void update() {
         world.step(1 / 60f, 6, 2);
