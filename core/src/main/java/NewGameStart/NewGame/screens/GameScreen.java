@@ -3,6 +3,7 @@ package NewGameStart.NewGame.screens;
 import NewGameStart.NewGame.Main;
 import NewGameStart.NewGame.entities.Player;
 import NewGameStart.NewGame.entities.SpecialWall;
+import NewGameStart.NewGame.entities.NormalWall;
 import NewGameStart.NewGame.world.WorldManager;
 
 import com.badlogic.gdx.Gdx;
@@ -25,6 +26,7 @@ public class GameScreen implements Screen {
     private ShapeRenderer shapeRenderer;
 
     private SpecialWall specialWall;
+    private NormalWall wall;
 
     public GameScreen(Main game) {
         this.game = game;
@@ -46,7 +48,9 @@ public class GameScreen implements Screen {
     }
 
     private void createSpecialWall() {
-        specialWall = new SpecialWall(worldManager.getWorld(), 0, 4, 2f, 1f);
+        specialWall = new SpecialWall(worldManager.getWorld(), 8, 2, 10f, 1f);
+        wall = new NormalWall(worldManager.getWorld(),0, 0, 30f, 1f);
+        wall = new NormalWall(worldManager.getWorld(),15, 0, 1f, 30f);
     }
 
     @Override
