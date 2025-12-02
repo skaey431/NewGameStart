@@ -1,38 +1,12 @@
 package NewGameStart.NewGame.entities;
 
-import com.badlogic.gdx.physics.box2d.*;
+import NewGameStart.NewGame.world.WorldManager;
+import com.badlogic.gdx.physics.box2d.Body;
+import com.badlogic.gdx.physics.box2d.World;
 
-public class Ground extends BaseEntity {
-
-    float w, h;
-
-    public Ground(World world, float x, float y, float w, float h) {
-        super(world);
-
-        this.w = w;
-        this.h = h;
-
-        createBody();  // 이제 여기서 직접 생성됨
-        body.setTransform(x, y, 0);
+public class Ground {
+    public static Body create(World world, float x, float y, float w, float h) {
+        // WorldManager에 구현된 정적 Body 생성 메서드를 사용
+        return WorldManager.createStaticBox(world, x, y, w, h, "ground");
     }
-
-    @Override
-    protected void createBody() {
-        BodyDef bd = new BodyDef();
-        bd.type = BodyDef.BodyType.StaticBody;
-        body.setType(BodyDef.BodyType.StaticBody);
-
-        PolygonShape shape = new PolygonShape();
-        shape.setAsBox(w / 2f, h / 2f);
-
-        FixtureDef fd = new FixtureDef();
-        fd.shape = shape;
-        fd.friction = 1f;
-
-        body.createFixture(fd);
-        shape.dispose();
-    }
-
-    @Override
-    public void update() {}
 }

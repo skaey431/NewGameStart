@@ -1,43 +1,34 @@
 package NewGameStart.NewGame.screens;
 
 import NewGameStart.NewGame.Main;
-import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Screen;
-import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.g2d.BitmapFont;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.Input;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
 
-public class OptionScreen implements Screen {
-    private final Main game;
-    private SpriteBatch batch;
-    private BitmapFont font;
+public class OptionScreen extends BaseScreen {
+    Main game;
 
     public OptionScreen(Main game) {
-        this.game = game;
-    }
+        super(game);
 
-    @Override
-    public void show() {
-        batch = new SpriteBatch();
-        font = new BitmapFont();
+        Table table = new Table(skin);
+        table.setFillParent(true);
+        stage.addActor(table);
+
+        Label title = new Label("옵션 화면 (ESC 키로 돌아가기)", skin);
+        table.add(title).pad(20).row();
     }
 
     @Override
     public void render(float delta) {
-        Gdx.gl.glClearColor(0.05f, 0.05f, 0.08f, 1);
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-        batch.begin();
-        font.draw(batch, "옵션 화면 (ESC로 돌아가기)", 500, 360);
-        batch.end();
+        super.render(delta);
+        stage.act(delta);
+        stage.draw();
 
-        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)) {
+        // ESC 키 입력 처리
+        if (com.badlogic.gdx.Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             game.setScreen(new TitleScreen(game));
+            dispose();
         }
     }
-
-    @Override public void resize(int width, int height) {}
-    @Override public void pause() {}
-    @Override public void resume() {}
-    @Override public void hide() {}
-    @Override public void dispose() { batch.dispose(); font.dispose(); }
 }

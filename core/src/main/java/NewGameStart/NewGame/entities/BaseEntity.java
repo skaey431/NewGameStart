@@ -1,23 +1,15 @@
 package NewGameStart.NewGame.entities;
 
-import com.badlogic.gdx.physics.box2d.*;
+import com.badlogic.gdx.physics.box2d.Body;
 
 public abstract class BaseEntity {
-
-    protected World world;
     protected Body body;
 
-    public BaseEntity(World world) {
-        this.world = world;
-        BodyDef bd = new BodyDef();
-        body = world.createBody(bd);
+    public BaseEntity(Body body) {
+        this.body = body;
     }
-
-    protected abstract void createBody();
 
     public Body getBody() {
         return body;
     }
-
-    public abstract void update();
 }

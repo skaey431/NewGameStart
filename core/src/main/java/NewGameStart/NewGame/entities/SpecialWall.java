@@ -1,31 +1,12 @@
 package NewGameStart.NewGame.entities;
 
-import com.badlogic.gdx.physics.box2d.*;
+import NewGameStart.NewGame.world.WorldManager;
+import com.badlogic.gdx.physics.box2d.Body;
+import com.badlogic.gdx.physics.box2d.World;
 
 public class SpecialWall {
-
-    private Body body;
-
-    public SpecialWall(World world, float x, float y, float w, float h) {
-
-        BodyDef def = new BodyDef();
-        def.type = BodyDef.BodyType.StaticBody;
-        def.position.set(x, y);
-
-        body = world.createBody(def);
-        body.setUserData("specialWall");
-
-        PolygonShape shape = new PolygonShape();
-        shape.setAsBox(w / 2f, h / 2f);
-
-        FixtureDef fd = new FixtureDef();
-        fd.shape = shape;
-        fd.friction = 1f;
-        Fixture f = body.createFixture(fd);
-        f.setUserData("specialWall");
-
-        shape.dispose();
+    public static Body create(World world, float x, float y, float w, float h) {
+        // 특수 충돌 필터링을 위해 UserData를 "specialWall"로 설정
+        return WorldManager.createStaticBox(world, x, y, w, h, "specialWall");
     }
-
-    public Body getBody() { return body; }
 }

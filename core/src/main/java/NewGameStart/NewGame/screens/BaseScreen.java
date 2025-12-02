@@ -1,5 +1,6 @@
 package NewGameStart.NewGame.screens;
 
+import NewGameStart.NewGame.Main;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
@@ -11,7 +12,7 @@ public abstract class BaseScreen implements Screen {
     protected Stage stage;
     protected Skin skin;
 
-    public BaseScreen() {
+    public BaseScreen(Main game) {
         stage = new Stage(new ScreenViewport());
         skin = FontInit.loadKoreanSkin();
         Gdx.input.setInputProcessor(stage);
