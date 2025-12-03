@@ -1,12 +1,13 @@
 package NewGameStart.NewGame.world;
 
 import NewGameStart.NewGame.entities.Player;
-import NewGameStart.NewGame.tools.Constants; // Constants import 추가
+import NewGameStart.NewGame.tools.Constants;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
 
 public class WorldManager {
 
+    // ... (world, getWorld, createStaticBox, createDefaultStage, dispose 메서드는 이전과 동일) ...
     private final World world;
 
     public WorldManager() {
@@ -16,7 +17,6 @@ public class WorldManager {
 
     public World getWorld() { return world; }
 
-    // ⭐ 수정: 충돌 필터링을 명확히 설정합니다.
     public static Body createStaticBox(World world, float x, float y, float w, float h, String userData) {
         BodyDef bdef = new BodyDef();
         bdef.type = BodyDef.BodyType.StaticBody;
@@ -30,7 +30,6 @@ public class WorldManager {
         fdef.shape = shape;
         fdef.density = 1.0f;
 
-        // ⭐ 수정: 환경 객체 카테고리 및 마스크 설정
         short category = Constants.CATEGORY_GROUND;
         if ("normalWall".equals(userData)) {
             category = Constants.CATEGORY_WALL;
@@ -38,10 +37,8 @@ public class WorldManager {
             category = Constants.CATEGORY_SPECIAL_WALL;
         }
 
-        // 이 물체의 카테고리 (자신이 누구인지)
         fdef.filter.categoryBits = category;
-        // 자신이 충돌할 대상 (플레이어 카테고리와 충돌하도록 설정)
-        fdef.filter.maskBits = Constants.CATEGORY_PLAYER; // 환경은 오직 플레이어와 충돌하면 됨
+        fdef.filter.maskBits = Constants.CATEGORY_PLAYER;
 
         body.createFixture(fdef).setUserData(userData);
         shape.dispose();
@@ -60,7 +57,7 @@ public class WorldManager {
     }
 
     // ------------------------------------------
-    // ContactListener 초기화 (로직은 이미 안정화됨)
+    // ContactListener 초기화 (SpecialWall 통과 로직 추가)
     // ------------------------------------------
     private void initContactListener() {
         world.setContactListener(new ContactListener() {
@@ -69,6 +66,7 @@ public class WorldManager {
             @Override public void endContact(Contact c) { handle(c, false); }
 
             private void handle(Contact c, boolean isBegin) {
+                // ... (이전의 센서 카운터 로직과 동일) ...
                 Fixture a = c.getFixtureA();
                 Fixture b = c.getFixtureB();
                 if (a == null || b == null) return;
@@ -99,7 +97,42 @@ public class WorldManager {
                 }
             }
 
-            @Override public void preSolve(Contact c, Manifold m) {}
+            @Override public void preSolve(Contact c, Manifold m) {
+                // ⭐ 핵심 수정: SpecialWall 통과/충돌 결정 로직
+                Fixture fA = c.getFixtureA();
+                Fixture fB = c.getFixtureB();
+
+                // 플레이어와 특수 벽 충돌인지 확인
+                boolean isPlayerA = fA.getBody().getUserData() instanceof Player;
+                boolean isPlayerB = fB.getBody().getUserData() instanceof Player;
+
+                // 둘 중 하나가 플레이어, 나머지 하나가 특수 벽인지 확인
+                if (isPlayerA && "specialWall".equals(fB.getUserData())) {
+                    handleSpecialWallCollision(c, (Player) fA.getBody().getUserData());
+                } else if (isPlayerB && "specialWall".equals(fA.getUserData())) {
+                    handleSpecialWallCollision(c, (Player) fB.getBody().getUserData());
+                }
+            }
+
+            private void handleSpecialWallCollision(Contact c, Player p) {
+                // 플레이어의 메인 Fixture와 특수 벽의 Fixture가 충돌해야만 처리 (센서는 제외)
+                // 센서는 UserData가 "foot", "left" 등으로 설정되어 있으므로, "player"만 확인
+                Object uA = c.getFixtureA().getUserData();
+                Object uB = c.getFixtureB().getUserData();
+
+                boolean isPlayerMainBody = "player".equals(uA) || "player".equals(uB);
+
+                if (isPlayerMainBody) {
+                    // isClinging 상태가 아니면 (벽에 매달리지 않으면) -> 충돌 응답 비활성화(통과)
+                    if (!p.isClinging) {
+                        c.setEnabled(false);
+                    } else {
+                        // isClinging 상태이면 (벽에 매달리면) -> 충돌 응답 활성화(벽에 붙음)
+                        c.setEnabled(true);
+                    }
+                }
+            }
+
             @Override public void postSolve(Contact c, ContactImpulse i) {}
         });
     }
