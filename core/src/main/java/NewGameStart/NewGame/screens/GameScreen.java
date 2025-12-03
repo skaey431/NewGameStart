@@ -58,8 +58,8 @@ public class GameScreen implements Screen {
         player.update(delta);
 
         // ⭐ 수정: 카메라가 플레이어를 따라가도록 위치를 조정합니다.
-        // X축만 따라가도록 하여 Y축은 고정 (일반적인 2D 플랫폼)
         camera.position.x = player.getBody().getPosition().x;
+        camera.position.y = player.getBody().getPosition().y;
         // 카메라가 월드 경계를 넘지 않도록 제한하는 로직은 필요시 추가
 
         camera.update();
