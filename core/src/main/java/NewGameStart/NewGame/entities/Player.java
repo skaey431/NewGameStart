@@ -16,12 +16,16 @@ public class Player {
 
     public boolean isClinging = false;
 
+    // ⭐ 쿨다운 시간 0.3초로 증가
+    private float wallJumpTimer = 0f;
+    private final float WALL_JUMP_COOLDOWN = 0.3f;
+
     private final float MOVE_SPEED = 5f;
-    private final float CLIMB_SPEED = 4f;
-    private final float JUMP_FORCE = 3f;
+    private final float JUMP_FORCE = 3.5f;
+    private final float WALL_JUMP_HORIZONTAL = 4.0f;
+    private final float WALL_JUMP_VERTICAL = 5.5f;
 
     public Player(World world, float x, float y) {
-        // ... (생성자 및 FixtureDef 코드는 이전 답변과 동일) ...
 
         BodyDef def = new BodyDef();
         def.type = BodyDef.BodyType.DynamicBody;
@@ -29,8 +33,6 @@ public class Player {
         body = world.createBody(def);
         body.setUserData(this);
         body.setFixedRotation(true);
-
-        // --- Fixtures (몸체 및 센서) 생성 및 충돌 필터링 설정 ---
 
         // 1. 몸체 Fixture
         PolygonShape main = new PolygonShape();
@@ -83,8 +85,8 @@ public class Player {
 
         boolean left = Gdx.input.isKeyPressed(Input.Keys.LEFT);
         boolean right = Gdx.input.isKeyPressed(Input.Keys.RIGHT);
-        boolean up = Gdx.input.isKeyPressed(Input.Keys.UP);
-        boolean down = Gdx.input.isKeyPressed(Input.Keys.DOWN);
+        boolean space = Gdx.input.isKeyJustPressed(Input.Keys.SPACE);
+
         Vector2 vel = body.getLinearVelocity();
 
         boolean isOnGround = footContacts > 0;
@@ -92,43 +94,77 @@ public class Player {
         boolean isTouchingRight = rightContacts > 0;
         boolean isTouchingCeiling = headContacts > 0;
 
-        // --- 클링 시작/종료 로직 (수정된 부분) ---
-        // ⭐ 핵심 수정: !isOnGround 조건을 추가하여 땅에 있을 때 클링 방지
-        if (!isOnGround && (isTouchingLeft && left || isTouchingRight && right || isTouchingCeiling)) {
+        // 1. 타이머 업데이트
+        if (wallJumpTimer > 0) {
+            wallJumpTimer -= delta;
+        }
+
+        // --- 클링 시작/종료 로직 (⭐ isTouchingCeiling 제거) ---
+        boolean canCling = wallJumpTimer <= 0;
+
+        // 땅이 아니고, 쿨다운 중이 아니며, (좌측 벽에 닿고 좌측 키를 누르거나 || 우측 벽에 닿고 우측 키를 누를 때)
+        if (!isOnGround && canCling && (isTouchingLeft && left || isTouchingRight && right)) {
             isClinging = true;
             body.setGravityScale(0);
+            body.setLinearVelocity(0, 0);
         } else {
             isClinging = false;
             body.setGravityScale(1);
         }
 
-        // --- 클링 이동 ---
+        // --- 클링 이동 (벽 점프) ---
         if (isClinging) {
-            float vx = 0;
-            float vy = 0;
 
-            if (left) vx = -CLIMB_SPEED;
-            if (right) vx = CLIMB_SPEED;
-            if (up) vy = CLIMB_SPEED;
-            if (down) vy = -CLIMB_SPEED;
+            if (space) {
+                isClinging = false;
+                body.setGravityScale(1);
 
-            body.setLinearVelocity(vx, vy);
-            return; // 클링 중에는 아래 일반 이동 코드를 실행하지 않음
+                float jumpX = 0;
+                float jumpY = WALL_JUMP_VERTICAL;
+
+                if (isTouchingLeft) {
+                    jumpX = WALL_JUMP_HORIZONTAL;
+                } else if (isTouchingRight) {
+                    jumpX = -WALL_JUMP_HORIZONTAL;
+                }
+
+                body.setLinearVelocity(jumpX, jumpY);
+
+                // 2. 벽 점프 직후 타이머 시작
+                wallJumpTimer = WALL_JUMP_COOLDOWN;
+            }
+            return;
         }
 
-        // --- 일반 이동 (클링 상태가 아닐 때만 실행됨) ---
-        // 이 코드가 이제 클링 상태가 아닐 때 정상적으로 실행되어야 합니다.
-        if (left) body.setLinearVelocity(-MOVE_SPEED, vel.y);
-        else if (right) body.setLinearVelocity(MOVE_SPEED, vel.y);
-        else body.setLinearVelocity(0, vel.y); // 키를 떼면 수평 속도를 0으로 만듦 (일반적인 플랫폼 게임 동작)
+        // --- 일반 이동 (벽 점프 쿨다운 중 입력 무시) ---
+        float targetVelocityX = 0;
 
-        // 점프 = Space
-        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) && isOnGround) {
+        if (wallJumpTimer > 0) {
+            // 쿨다운 중: 현재 속도(vel.x)를 유지하여 관성만 적용
+            targetVelocityX = vel.x;
+        } else {
+            // 쿨다운 해제: 정상적인 이동 로직
+            if (left) {
+                // 왼쪽 이동: 왼쪽 벽에 닿았다면 속도 0, 아니면 MOVE_SPEED
+                targetVelocityX = isTouchingLeft ? 0 : -MOVE_SPEED;
+            } else if (right) {
+                // 오른쪽 이동: 오른쪽 벽에 닿았다면 속도 0, 아니면 MOVE_SPEED
+                targetVelocityX = isTouchingRight ? 0 : MOVE_SPEED;
+            } else {
+                // 입력 없음: 지상이라면 멈추고, 공중이라면 관성 유지
+                targetVelocityX = isOnGround ? 0 : vel.x;
+            }
+        }
+
+        body.setLinearVelocity(targetVelocityX, vel.y);
+
+        // 점프 = Space (일반 지상 점프)
+        if (space && isOnGround) {
             body.applyLinearImpulse(new Vector2(0, JUMP_FORCE), body.getWorldCenter(), true);
         }
     }
 
-    // ... (incrementContact, decrementContact 등 나머지 메서드 원본과 동일) ...
+    // --- Contact Methods (이전과 동일) ---
     public Body getBody() { return body; }
     public void incrementContact(String sensor) {
         switch (sensor) {
