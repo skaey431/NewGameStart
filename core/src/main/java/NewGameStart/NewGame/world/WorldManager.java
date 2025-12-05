@@ -1,6 +1,6 @@
 package NewGameStart.NewGame.world;
 
-import NewGameStart.NewGame.entities.Player;
+import NewGameStart.NewGame.entities.player.Player;
 import NewGameStart.NewGame.tools.Constants;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;

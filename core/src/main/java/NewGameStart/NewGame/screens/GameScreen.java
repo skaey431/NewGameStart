@@ -1,7 +1,7 @@
 package NewGameStart.NewGame.screens;
 
 import NewGameStart.NewGame.Main;
-import NewGameStart.NewGame.entities.Player;
+import NewGameStart.NewGame.entities.player.Player;
 import NewGameStart.NewGame.world.WorldManager;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
