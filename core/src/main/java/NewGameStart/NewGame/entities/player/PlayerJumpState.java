@@ -50,8 +50,10 @@ public class PlayerJumpState implements PlayerState {
         } else {
             // 벽에 닿았을 때는 반대 방향으로 이동하려고 하지 않는 이상 속도 유지 (벽에 붙지 않음)
             if (left) {
+                // 왼쪽 이동: 왼쪽 벽에 닿았으면 속도 0, 아니면 이동 속도
                 targetVelocityX = player.isTouchingLeft() ? 0 : -player.MOVE_SPEED;
             } else if (right) {
+                // 오른쪽 이동: 오른쪽 벽에 닿았으면 속도 0, 아니면 이동 속도
                 targetVelocityX = player.isTouchingRight() ? 0 : player.MOVE_SPEED;
             } else {
                 targetVelocityX = vel.x;

@@ -1,9 +1,5 @@
 package NewGameStart.NewGame.entities.player;
 
-import NewGameStart.NewGame.entities.player.PlayerClingState;
-import NewGameStart.NewGame.entities.player.PlayerDashState;
-import NewGameStart.NewGame.entities.player.PlayerState;
-import NewGameStart.NewGame.entities.player.PlayerRunState;
 import NewGameStart.NewGame.tools.Constants;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
@@ -20,7 +16,7 @@ public class Player {
 
     private PlayerState currentState;
 
-    // ⭐ 대쉬 및 벽 점프 관련 필드
+    // 대쉬 및 벽 점프 관련 필드
     public boolean isClinging = false;
     public boolean isDashing = false;
 
@@ -30,18 +26,21 @@ public class Player {
     public float dashCooldownTimer = 0f;
     public final float DASH_COOLDOWN = 0.5f;
 
-    // ⭐ 더블 점프 관련 필드 추가
+    // ⭐ 공중 대쉬 제한을 위한 필드
+    public final int MAX_DASHES_AIR = 1;
+    public int dashesPerformed = 0;
+
+    // 더블 점프 관련 필드
     public final int MAX_JUMPS = 2;
     public int jumpsPerformed = 0;
 
-    // ⭐ 상수
+    // 상수
     public final float MOVE_SPEED = 5f;
     public final float JUMP_FORCE = 3.5f;
-    public final float WALL_JUMP_HORIZONTAL = 5.5f;
-    public final float WALL_JUMP_VERTICAL = 5.5f;
+    public final float WALL_JUMP_HORIZONTAL = 2f;
+    public final float WALL_JUMP_VERTICAL = 6f;
 
     public Player(World world, float x, float y) {
-        // ... (Body 및 Fixture 생성 코드는 이전과 동일) ...
         BodyDef def = new BodyDef();
         def.type = BodyDef.BodyType.DynamicBody;
         def.position.set(x, y);
@@ -95,7 +94,6 @@ public class Player {
         this.currentState.enter(this);
     }
 
-    // ⭐ 상태 전환 메서드 (핵심)
     public void changeState(PlayerState newState) {
         if (currentState != null) {
             currentState.exit(this);
@@ -106,32 +104,40 @@ public class Player {
 
     public void update(float delta) {
 
-        // ⭐ 타이머 업데이트
         if (wallJumpTimer > 0) wallJumpTimer -= delta;
         if (dashCooldownTimer > 0) dashCooldownTimer -= delta;
 
-        // ⭐ 대쉬 입력 우선 확인 (모든 상태보다 우선)
+        // 지상 착지 시 대쉬 및 점프 횟수 초기화
+        if (isOnGround()) {
+            dashesPerformed = 0;
+            jumpsPerformed = 0;
+        }
+
         boolean left = Gdx.input.isKeyPressed(Input.Keys.LEFT);
         boolean right = Gdx.input.isKeyPressed(Input.Keys.RIGHT);
         boolean dashInput = Gdx.input.isKeyJustPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyJustPressed(Input.Keys.SHIFT_RIGHT);
 
         if (dashInput && dashCooldownTimer <= 0 && (left || right) && !(currentState instanceof PlayerDashState)) {
+            // 공중 대쉬 횟수 제한 확인
+            if (!isOnGround() && dashesPerformed >= MAX_DASHES_AIR) {
+                return;
+            }
+
             changeState(new PlayerDashState());
             return;
         }
 
         currentState.update(this, delta);
 
-        // ⭐ 공중/벽 상태 확인 및 전환 (모든 update 후 실행되어야 함)
+        // 공중 상태 전환 로직 (PlayerClingState 참조 포함)
         if (!isDashing) {
-            if (!isOnGround() && !isClinging && wallJumpTimer <= 0 && (isTouchingLeft() && left || isTouchingRight() && right)) {
-                changeState(new PlayerClingState());
+            if (!isOnGround() && !(currentState instanceof PlayerJumpState) && !(currentState instanceof PlayerClingState)) {
+                changeState(new PlayerJumpState());
                 return;
             }
         }
     }
 
-    // --- Contact Methods (이전과 동일) ---
     public Body getBody() { return body; }
     public boolean isOnGround() { return footContacts > 0; }
     public boolean isTouchingLeft() { return leftContacts > 0; }

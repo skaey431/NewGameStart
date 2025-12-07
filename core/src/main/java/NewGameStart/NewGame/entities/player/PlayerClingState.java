@@ -1,62 +1,76 @@
 package NewGameStart.NewGame.entities.player;
 
-import NewGameStart.NewGame.entities.player.Player;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
-import com.badlogic.gdx.math.Vector2;
 
 public class PlayerClingState implements PlayerState {
+
+    private final float CLING_GRAVITY = 0.5f; // 낮은 중력으로 천천히 미끄러지게 함
+    private final float SLIDE_SPEED = -1.0f; // 미끄러지는 최대 속도
 
     @Override
     public void enter(Player player) {
         player.isClinging = true;
-        player.getBody().setGravityScale(0);
+        // 매달리는 동안 수평 속도 0으로 설정
         player.getBody().setLinearVelocity(0, 0);
+
+        // ⭐ 벽에 매달릴 때 공중 능력 초기화 (추가된 부분)
+        player.dashesPerformed = 0;
+        player.jumpsPerformed = 0;
     }
 
     @Override
     public void update(Player player, float delta) {
-        // 벽 점프 처리
-        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
+
+        // 1. 상태 전환 조건 확인: 매달릴 벽이 없거나 땅에 착지하면 즉시 이탈
+        if (player.isOnGround() || (!player.isTouchingLeft() && !player.isTouchingRight())) {
+            player.changeState(new PlayerIdleState());
+            return;
+        }
+
+        // 2. 키를 떼면 일반 낙하 상태로 복귀
+        // 물리적 접촉 (isTouching...)과 사용자 입력 (isKeyPressed) 두 조건이 모두 참일 때만 'Clinging'으로 간주합니다.
+        boolean clingingLeft = player.isTouchingLeft() && Gdx.input.isKeyPressed(Input.Keys.LEFT);
+        boolean clingingRight = player.isTouchingRight() && Gdx.input.isKeyPressed(Input.Keys.RIGHT);
+
+        if (!clingingLeft && !clingingRight) {
+            // 벽에 닿아 있지만 (Touching), 벽 쪽 방향 키를 누르고 있지 않으면 (Not Clinging)
             player.changeState(new PlayerJumpState());
+            return;
+        }
 
-            // 벽 점프는 점프 횟수를 1로 초기화 (더블 점프 기회 1회 남김)
-            player.jumpsPerformed = 1;
+        // 3. 벽 점프 (Wall Jump)
+        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) && player.wallJumpTimer <= 0) {
 
-            // 벽 점프 동작 실행
-            float jumpX = 0;
-            float jumpY = player.WALL_JUMP_VERTICAL;
+            // 점프 방향 설정: 왼쪽 벽에 매달려 있으면 오른쪽으로, 오른쪽 벽에 매달려 있으면 왼쪽으로 점프
+            float jumpForceX = player.isTouchingLeft() ? player.WALL_JUMP_HORIZONTAL : -player.WALL_JUMP_HORIZONTAL;
 
-            if (player.isTouchingLeft()) {
-                jumpX = player.WALL_JUMP_HORIZONTAL;
-            } else if (player.isTouchingRight()) {
-                jumpX = -player.WALL_JUMP_HORIZONTAL;
-            }
-
-            player.getBody().setLinearVelocity(jumpX, jumpY);
+            player.getBody().setLinearVelocity(jumpForceX, player.WALL_JUMP_VERTICAL);
             player.wallJumpTimer = player.WALL_JUMP_COOLDOWN;
+            player.changeState(new PlayerJumpState()); // 점프 후 JumpState로 전환
             return;
         }
 
-        // 클링 해제 조건
-        boolean left = Gdx.input.isKeyPressed(Input.Keys.LEFT);
-        boolean right = Gdx.input.isKeyPressed(Input.Keys.RIGHT);
+        // 4. 벽 매달림 중 미끄러짐 처리
+        if (player.isClinging) {
+            float currentYVelocity = player.getBody().getLinearVelocity().y;
 
-        if (player.isOnGround()) {
-            player.changeState(new PlayerRunState());
-            return;
-        }
-
-        // 벽에서 벗어나려는 키를 누르거나, 벽 센서가 끊겼을 때
-        if ((player.isTouchingLeft() && right) || (player.isTouchingRight() && left) || (!player.isTouchingLeft() && !player.isTouchingRight())) {
-            player.changeState(new PlayerJumpState());
-            return;
+            // 미끄러지는 속도보다 느리게 떨어지고 있으면 속도를 제한 (부드러운 하강)
+            if (currentYVelocity < SLIDE_SPEED) {
+                player.getBody().setLinearVelocity(0, SLIDE_SPEED);
+                player.getBody().setGravityScale(0); // 속도 제한 중에는 중력 스케일 0
+            } else {
+                // 일반적인 매달림 하강 (낮은 중력 적용)
+                player.getBody().setGravityScale(CLING_GRAVITY);
+                player.getBody().setLinearVelocity(0, currentYVelocity); // 수평 속도 0 유지
+            }
         }
     }
 
     @Override
     public void exit(Player player) {
         player.isClinging = false;
+        // 중력 스케일 복원
         player.getBody().setGravityScale(1);
     }
 

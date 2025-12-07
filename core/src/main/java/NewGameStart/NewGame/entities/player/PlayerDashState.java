@@ -9,14 +9,18 @@ public class PlayerDashState implements PlayerState {
     private final float DASH_DURATION = 0.15f;
     private final float DASH_SPEED = 15f;
     private float timer = 0f;
-    private float dashDirection = 0f; // -1 (Left) or 1 (Right)
+    private float dashDirection = 0f;
 
     @Override
     public void enter(Player player) {
         timer = DASH_DURATION;
         player.isDashing = true;
+        player.dashCooldownTimer = player.DASH_COOLDOWN;
 
-        // 진입 시 방향 설정
+        // ⭐ 대쉬 횟수 증가 로직 추가
+        player.dashesPerformed++;
+
+        // 대쉬 방향 설정
         if (Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
             dashDirection = -1;
         } else if (Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
@@ -32,15 +36,14 @@ public class PlayerDashState implements PlayerState {
     public void update(Player player, float delta) {
         timer -= delta;
 
-        // 대쉬 중에는 속도를 강제 유지
-        player.getBody().setLinearVelocity(dashDirection * DASH_SPEED, 0);
-
         if (timer <= 0) {
-            // 대쉬 종료 후 방향키 입력 여부에 따라 Run 또는 Idle 상태로 복귀
-            if (Gdx.input.isKeyPressed(Input.Keys.LEFT) || Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
-                player.changeState(new PlayerRunState());
-            } else {
+            // 대쉬가 끝나면 다음 상태로 전환
+            if (player.isOnGround()) {
                 player.changeState(new PlayerIdleState());
+            } else if (player.isTouchingLeft() || player.isTouchingRight()) {
+                player.changeState(new PlayerClingState());
+            } else {
+                player.changeState(new PlayerAirState());
             }
         }
     }
@@ -48,8 +51,10 @@ public class PlayerDashState implements PlayerState {
     @Override
     public void exit(Player player) {
         player.isDashing = false;
-        player.getBody().setGravityScale(1); // 중력 복원
-        player.dashCooldownTimer = player.DASH_COOLDOWN; // 쿨다운 시작
+        // 중력 스케일 복원
+        player.getBody().setGravityScale(1);
+        // 대쉬 종료 후 즉시 속도 초기화 (관성 제거)
+        player.getBody().setLinearVelocity(0, player.getBody().getLinearVelocity().y);
     }
 
     @Override
