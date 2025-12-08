@@ -5,8 +5,10 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
+import NewGameStart.NewGame.entities.BaseEntity;
 
-public class Player {
+// BaseEntity를 상속받아 체력 시스템을 사용합니다.
+public class Player extends BaseEntity {
 
     private Body body;
     private int footContacts = 0;
@@ -26,7 +28,7 @@ public class Player {
     public float dashCooldownTimer = 0f;
     public final float DASH_COOLDOWN = 0.5f;
 
-    // ⭐ 공중 대쉬 제한을 위한 필드
+    // 공중 대쉬 제한을 위한 필드
     public final int MAX_DASHES_AIR = 1;
     public int dashesPerformed = 0;
 
@@ -41,6 +43,9 @@ public class Player {
     public final float WALL_JUMP_VERTICAL = 8f;
 
     public Player(World world, float x, float y) {
+        // BaseEntity 생성자를 호출하여 체력을 초기화합니다.
+        super();
+
         BodyDef def = new BodyDef();
         def.type = BodyDef.BodyType.DynamicBody;
         def.position.set(x, y);
@@ -102,7 +107,13 @@ public class Player {
         newState.enter(this);
     }
 
+    // BaseEntity의 추상 메서드(update)를 오버라이드합니다.
+    @Override
     public void update(float delta) {
+        // BaseEntity의 isAlive() 체크를 사용하여 사망 시 업데이트를 막습니다.
+        if (!isAlive()) {
+            return;
+        }
 
         if (wallJumpTimer > 0) wallJumpTimer -= delta;
         if (dashCooldownTimer > 0) dashCooldownTimer -= delta;
