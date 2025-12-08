@@ -49,7 +49,9 @@ public class WorldManager {
     public void createDefaultStage() {
         createStaticBox(world, 8f, 0.5f, 16f, 1f, "ground");
         createStaticBox(world, 0.5f, 5f, 1f, 9f, "normalWall");
-        createStaticBox(world, 15.5f, 5f, 1f, 9f, "specialWall");
+        createStaticBox(world, 15f, 5f, 1f, 9f, "specialWall");
+        createStaticBox(world, 25f, 5f, 1f, 9f, "specialWall");
+        createStaticBox(world, 35f, 5f, 1f, 9f, "specialWall");
     }
 
     public void dispose() {

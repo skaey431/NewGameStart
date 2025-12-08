@@ -14,7 +14,7 @@ public class PlayerClingState implements PlayerState {
         // 매달리는 동안 수평 속도 0으로 설정
         player.getBody().setLinearVelocity(0, 0);
 
-        // ⭐ 벽에 매달릴 때 공중 능력 초기화 (추가된 부분)
+        // 벽에 매달릴 때 공중 능력 초기화 (대쉬 및 점프 횟수 0으로 리셋)
         player.dashesPerformed = 0;
         player.jumpsPerformed = 0;
     }
@@ -29,12 +29,10 @@ public class PlayerClingState implements PlayerState {
         }
 
         // 2. 키를 떼면 일반 낙하 상태로 복귀
-        // 물리적 접촉 (isTouching...)과 사용자 입력 (isKeyPressed) 두 조건이 모두 참일 때만 'Clinging'으로 간주합니다.
         boolean clingingLeft = player.isTouchingLeft() && Gdx.input.isKeyPressed(Input.Keys.LEFT);
         boolean clingingRight = player.isTouchingRight() && Gdx.input.isKeyPressed(Input.Keys.RIGHT);
 
         if (!clingingLeft && !clingingRight) {
-            // 벽에 닿아 있지만 (Touching), 벽 쪽 방향 키를 누르고 있지 않으면 (Not Clinging)
             player.changeState(new PlayerJumpState());
             return;
         }
@@ -42,7 +40,10 @@ public class PlayerClingState implements PlayerState {
         // 3. 벽 점프 (Wall Jump)
         if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) && player.wallJumpTimer <= 0) {
 
-            // 점프 방향 설정: 왼쪽 벽에 매달려 있으면 오른쪽으로, 오른쪽 벽에 매달려 있으면 왼쪽으로 점프
+            // ⭐ 수정: 벽 점프는 공중 점프 기회를 소모하지 않으므로, 카운터를 증가시키지 않습니다.
+            // player.jumpsPerformed++; // 이 줄을 제거함
+
+            // 점프 방향 설정
             float jumpForceX = player.isTouchingLeft() ? player.WALL_JUMP_HORIZONTAL : -player.WALL_JUMP_HORIZONTAL;
 
             player.getBody().setLinearVelocity(jumpForceX, player.WALL_JUMP_VERTICAL);

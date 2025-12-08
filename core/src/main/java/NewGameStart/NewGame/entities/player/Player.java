@@ -31,14 +31,14 @@ public class Player {
     public int dashesPerformed = 0;
 
     // 더블 점프 관련 필드
-    public final int MAX_JUMPS = 2;
+    public final int MAX_JUMPS = 1;
     public int jumpsPerformed = 0;
 
     // 상수
     public final float MOVE_SPEED = 5f;
     public final float JUMP_FORCE = 3.5f;
-    public final float WALL_JUMP_HORIZONTAL = 2f;
-    public final float WALL_JUMP_VERTICAL = 6f;
+    public final float WALL_JUMP_HORIZONTAL = 3f;
+    public final float WALL_JUMP_VERTICAL = 8f;
 
     public Player(World world, float x, float y) {
         BodyDef def = new BodyDef();

@@ -27,6 +27,9 @@ public class PlayerDashState implements PlayerState {
             dashDirection = 1;
         }
 
+        // 벽에 매달릴 때 공중 능력 초기화 (대쉬 및 점프 횟수 0으로 리셋)
+        player.jumpsPerformed = 0;
+
         // 중력 무시 및 대쉬 속도 적용
         player.getBody().setGravityScale(0);
         player.getBody().setLinearVelocity(dashDirection * DASH_SPEED, 0);
