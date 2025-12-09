@@ -1,11 +1,17 @@
 package NewGameStart.NewGame.entities.player;
 
+import NewGameStart.NewGame.entities.BaseEntity;
+import NewGameStart.NewGame.entities.player.PlayerClingState;
+import NewGameStart.NewGame.entities.player.PlayerDashState;
+import NewGameStart.NewGame.entities.player.PlayerIdleState;
+import NewGameStart.NewGame.entities.player.PlayerJumpState;
+import NewGameStart.NewGame.entities.player.PlayerRunState;
+import NewGameStart.NewGame.entities.player.PlayerState;
 import NewGameStart.NewGame.tools.Constants;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
-import NewGameStart.NewGame.entities.BaseEntity;
 
 // BaseEntity를 상속받아 체력 시스템을 사용합니다.
 public class Player extends BaseEntity {
@@ -42,6 +48,10 @@ public class Player extends BaseEntity {
     public final float WALL_JUMP_HORIZONTAL = 3f;
     public final float WALL_JUMP_VERTICAL = 8f;
 
+    // Box2D Body의 바운드를 Rectange 형태로 반환합니다.
+    // DamageBox와의 충돌 체크에 사용됩니다.
+    private final com.badlogic.gdx.math.Rectangle tempBounds = new com.badlogic.gdx.math.Rectangle();
+
     public Player(World world, float x, float y) {
         // BaseEntity 생성자를 호출하여 체력을 초기화합니다.
         super();
@@ -53,7 +63,7 @@ public class Player extends BaseEntity {
         body.setUserData(this);
         body.setFixedRotation(true);
 
-        // 1. 몸체 Fixture
+        // 1. 몸체 Fixture (충돌 바운드로 사용됨)
         PolygonShape main = new PolygonShape();
         main.setAsBox(0.3f, 0.5f);
         FixtureDef fd = new FixtureDef();
@@ -62,7 +72,8 @@ public class Player extends BaseEntity {
         fd.friction = 0.3f;
         fd.filter.categoryBits = Constants.CATEGORY_PLAYER;
         fd.filter.maskBits = Constants.MASK_PLAYER;
-        body.createFixture(fd).setUserData("player");
+        // 메인 바디 Fixture에 고유의 UserData를 설정하여 충돌 감지에 사용합니다.
+        body.createFixture(fd).setUserData("player_main");
         main.dispose();
 
         // 2. 센서 Fixture (foot, head, left, right)
@@ -148,6 +159,38 @@ public class Player extends BaseEntity {
             }
         }
     }
+
+    /**
+     * Box2D Body의 위치와 크기를 기반으로 충돌 감지를 위한 Rectangle을 생성하여 반환합니다.
+     * DamageBox와 같은 비 Box2D 객체와의 충돌 체크에 사용됩니다.
+     */
+    public com.badlogic.gdx.math.Rectangle getBounds() {
+        // Box2D Body의 위치를 가져옵니다.
+        Vector2 position = body.getPosition();
+
+        // Body의 크기는 Fixture 생성 시 setAsBox(0.3f, 0.5f)로 정의되었습니다 (전체 폭: 0.6f, 전체 높이: 1.0f).
+        // Rectangle은 좌측 하단 코너(x, y)를 기준으로 하므로, Body의 중앙 위치에서 폭/2, 높이/2를 빼줍니다.
+        float width = 0.6f;
+        float height = 1.0f;
+
+        tempBounds.set(
+            position.x - width / 2f,
+            position.y - height / 2f,
+            width,
+            height
+        );
+        return tempBounds;
+    }
+
+    // Box2D Body의 x 좌표를 반환합니다.
+    public float getX() { return body.getPosition().x; }
+    // Box2D Body의 y 좌표를 반환합니다.
+    public float getY() { return body.getPosition().y; }
+
+    // Box2D Body를 직접 설정하는 대신, 위치를 설정합니다.
+    public void setX(float x) { body.setTransform(x, body.getPosition().y, body.getAngle()); }
+    public void setY(float y) { body.setTransform(body.getPosition().x, y, body.getAngle()); }
+
 
     public Body getBody() { return body; }
     public boolean isOnGround() { return footContacts > 0; }
