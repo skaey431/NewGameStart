@@ -1,23 +1,22 @@
 package NewGameStart.NewGame.screens;
 
 import NewGameStart.NewGame.Main;
-import NewGameStart.NewGame.entities.DamageBox;
+import NewGameStart.NewGame.entities.DamageBox; // 데미지 박스 임포트
 import NewGameStart.NewGame.entities.player.Player;
 import NewGameStart.NewGame.screens.UI.HealthBar;
 import NewGameStart.NewGame.world.WorldManager;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.files.FileHandle;
-import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.Color; // 색상 임포트
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.Array; // Array 임포트
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 
 public class GameScreen implements Screen {
@@ -29,7 +28,7 @@ public class GameScreen implements Screen {
     private OrthographicCamera camera;
     private ShapeRenderer shapeRenderer;
 
-    // --- 데미지 박스 관련 필드 ---
+    // --- 데미지 박스 관련 필드 (복구) ---
     private Array<DamageBox> damageBoxes;
     private float damageTimer = 0f;
     private final float DAMAGE_CHECK_RATE = 0.5f; // 0.5초마다 데미지 확인
@@ -58,7 +57,7 @@ public class GameScreen implements Screen {
 
         createPlayer();
         worldManager.createDefaultStage();
-        createDamageBoxes(); // 데미지 박스 초기화
+        createDamageBoxes(); // 데미지 박스 초기화 (복구)
 
         // UI 초기화
         loadSkin();
@@ -71,7 +70,7 @@ public class GameScreen implements Screen {
     }
 
     /**
-     * 데미지 박스 인스턴스를 생성하고 배열에 추가합니다.
+     * 데미지 박스 인스턴스를 생성하고 배열에 추가합니다. (복구)
      */
     private void createDamageBoxes() {
         damageBoxes = new Array<>();
@@ -81,7 +80,7 @@ public class GameScreen implements Screen {
         damageBoxes.add(new DamageBox(20f, 5f, 2f, 2f, 10f, DAMAGE_CHECK_RATE));
     }
 
-    // Skin 로드 로직: 여러 경로를 시도하고 실패 시 로그를 남김
+    // Skin 로드 로직
     private void loadSkin() {
         String[] potentialPaths = {"skin/uiskin.json", "data/uiskin.json", "uiskin.json"};
         skin = null;
@@ -118,7 +117,7 @@ public class GameScreen implements Screen {
     }
 
     /**
-     * 플레이어와 데미지 박스 간의 충돌을 확인하고 데미지를 적용합니다.
+     * 플레이어와 데미지 박스 간의 충돌을 확인하고 데미지를 적용합니다. (복구)
      */
     private void checkDamage(float delta) {
         if (!player.isAlive()) return;
@@ -128,7 +127,7 @@ public class GameScreen implements Screen {
         // 지정된 데미지 간격이 되었을 때만 충돌을 확인하고 데미지를 적용합니다.
         if (damageTimer >= DAMAGE_CHECK_RATE) {
 
-            // Box2D Body 기반의 플레이어 충돌 경계
+            // Box2D Body 기반의 플레이어 충돌 경계 (Player.getBounds() 사용)
             com.badlogic.gdx.math.Rectangle playerBounds = player.getBounds();
 
             for (DamageBox box : damageBoxes) {
@@ -149,6 +148,7 @@ public class GameScreen implements Screen {
             }
 
             // 데미지를 적용했으므로 타이머를 재설정합니다.
+            // DAMAGE_CHECK_RATE를 넘긴 시간만큼만 남기고 리셋하여 정확도를 높입니다.
             damageTimer -= DAMAGE_CHECK_RATE;
         }
     }
@@ -165,7 +165,7 @@ public class GameScreen implements Screen {
         worldManager.getWorld().step(delta, 6, 2);
         player.update(delta);
 
-        // --- 데미지 체크 ---
+        // --- 데미지 체크 (복구) ---
         checkDamage(delta);
         // ------------------
 
@@ -197,7 +197,7 @@ public class GameScreen implements Screen {
             0.6f, 1.0f
         );
 
-        // 2. 데미지 박스 시각화 (반투명 빨간색)
+        // 2. 데미지 박스 시각화 (반투명 빨간색) (복구)
         shapeRenderer.setColor(1f, 0f, 0f, 0.5f); // 붉은색 반투명
         for (DamageBox box : damageBoxes) {
             com.badlogic.gdx.math.Rectangle rect = box.getBounds();

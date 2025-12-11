@@ -37,8 +37,7 @@ public class WorldManager {
         }
 
         fdef.filter.categoryBits = category;
-        // ⭐ 사용자님의 원래 코드를 유지: 이 설정이 충돌 인식이 되도록 보장합니다.
-        fdef.filter.maskBits = Constants.CATEGORY_PLAYER;
+        fdef.filter.maskBits = Constants.CATEGORY_PLAYER; // 플레이어와만 충돌
 
         body.createFixture(fdef).setUserData(userData);
         shape.dispose();
@@ -47,8 +46,11 @@ public class WorldManager {
     }
 
     public void createDefaultStage() {
+        // 바닥
         createStaticBox(world, 8f, 0.5f, 16f, 1f, "ground");
+        // 일반 벽 (왼쪽 끝)
         createStaticBox(world, 0.5f, 5f, 1f, 9f, "normalWall");
+        // 특수 벽
         createStaticBox(world, 15f, 5f, 1f, 9f, "specialWall");
         createStaticBox(world, 25f, 5f, 1f, 9f, "specialWall");
         createStaticBox(world, 35f, 5f, 1f, 9f, "specialWall");
@@ -58,9 +60,7 @@ public class WorldManager {
         world.dispose();
     }
 
-    // ------------------------------------------
-    // ContactListener 초기화 (최종 버그 수정)
-    // ------------------------------------------
+    // ContactListener 초기화 (Special Wall 충돌 처리)
     private void initContactListener() {
         world.setContactListener(new ContactListener() {
 
@@ -76,12 +76,12 @@ public class WorldManager {
                 Fixture otherFixture = null;
                 Player p = null;
 
-                // 1. Player Body를 가진 Fixture와 Other Fixture를 명확히 분리하여 찾습니다.
-                if (fA.getBody().getUserData() instanceof Player) {
+                // 1. Player Body를 가진 Fixture와 Other Fixture를 명확히 분리하여 찾습니다. (센서만 처리)
+                if (fA.getBody().getUserData() instanceof Player && fA.isSensor()) {
                     p = (Player) fA.getBody().getUserData();
                     playerSensor = fA;
                     otherFixture = fB;
-                } else if (fB.getBody().getUserData() instanceof Player) {
+                } else if (fB.getBody().getUserData() instanceof Player && fB.isSensor()) {
                     p = (Player) fB.getBody().getUserData();
                     playerSensor = fB;
                     otherFixture = fA;
@@ -92,19 +92,16 @@ public class WorldManager {
                 String sensorType = (String) playerSensor.getUserData();
                 Object otherUserData = otherFixture.getUserData(); // 상대방 Fixture UserData
 
-                // 2. 센서가 유효한 센서인지 확인
+                // 2. 센서 카운트 업데이트
                 if ("foot".equals(sensorType) || "left".equals(sensorType) ||
                     "right".equals(sensorType) || "head".equals(sensorType)) {
 
-                    // ⭐ 무한 점프 버그 수정: 발 센서 필터링을 재도입합니다.
-                    if ("foot".equals(sensorType)) {
-                        // 다른 물체의 UserData가 "ground"가 아니면 footContact 카운트를 막습니다.
-                        if (!"ground".equals(otherUserData)) {
-                            return;
-                        }
+                    // foot 센서 필터링 (ground가 아니면 footContact 카운트 막기)
+                    if ("foot".equals(sensorType) && !"ground".equals(otherUserData)) {
+                        return;
                     }
 
-                    // 3. 접촉 카운트 업데이트
+                    // 접촉 카운트 업데이트
                     if (isBegin) {
                         p.incrementContact(sensorType);
                     } else {
@@ -114,7 +111,7 @@ public class WorldManager {
             }
 
             @Override public void preSolve(Contact c, Manifold m) {
-                // ... (SpecialWall 통과/충돌 결정 로직은 동일) ...
+                // Special Wall 충돌 처리
                 Fixture fA = c.getFixtureA();
                 Fixture fB = c.getFixtureB();
 
@@ -122,27 +119,27 @@ public class WorldManager {
                 boolean isPlayerB = fB.getBody().getUserData() instanceof Player;
 
                 if (isPlayerA && "specialWall".equals(fB.getUserData())) {
-                    handleSpecialWallCollision(c, (Player) fA.getBody().getUserData());
+                    handleSpecialWallCollision(c, (Player) fA.getBody().getUserData(), fA);
                 } else if (isPlayerB && "specialWall".equals(fA.getUserData())) {
-                    handleSpecialWallCollision(c, (Player) fB.getBody().getUserData());
+                    handleSpecialWallCollision(c, (Player) fB.getBody().getUserData(), fB);
                 }
             }
 
-            private void handleSpecialWallCollision(Contact c, Player p) {
-                // ... (로직은 동일) ...
-                Object uA = c.getFixtureA().getUserData();
-                Object uB = c.getFixtureB().getUserData();
-
-                boolean isPlayerMainBody = "player".equals(uA) || "player".equals(uB);
+            private void handleSpecialWallCollision(Contact c, Player p, Fixture playerFixture) {
+                // 플레이어의 메인 바디 Fixture가 접촉했는지 확인 ("player_main" UserData를 가진 Fixture)
+                boolean isPlayerMainBody = "player_main".equals(playerFixture.getUserData());
 
                 if (isPlayerMainBody) {
+                    // 플레이어가 매달리는 상태가 아니면 충돌 비활성화 (통과)
                     if (!p.isClinging) {
                         c.setEnabled(false);
                     } else {
+                        // 플레이어가 매달리는 상태이면 충돌 활성화 (벽에 붙음)
                         c.setEnabled(true);
                     }
                 }
             }
+
 
             @Override public void postSolve(Contact c, ContactImpulse i) {}
         });
