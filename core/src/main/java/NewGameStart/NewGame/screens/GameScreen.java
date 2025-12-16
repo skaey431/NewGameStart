@@ -3,13 +3,13 @@ package NewGameStart.NewGame.screens;
 import NewGameStart.NewGame.Main;
 import NewGameStart.NewGame.entities.DamageBox;
 import NewGameStart.NewGame.entities.Checkpoint;
-import NewGameStart.NewGame.entities.InstantKillBox; // InstantKillBox import
+import NewGameStart.NewGame.entities.InstantKillBox;
 import NewGameStart.NewGame.entities.player.Player;
 import NewGameStart.NewGame.screens.UI.HealthBar;
 import NewGameStart.NewGame.screens.managers.GameStateManager;
+import NewGameStart.NewGame.screens.managers.EntityManager; // EntityManager import
 import NewGameStart.NewGame.world.WorldManager;
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Color;
@@ -21,37 +21,26 @@ import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 
 public class GameScreen implements Screen {
 
     private final Main game;
-    private WorldManager worldManager;
+    private final WorldManager worldManager;
     private Player player;
-    private Box2DDebugRenderer debugRenderer;
-    private OrthographicCamera camera;
-    private ShapeRenderer shapeRenderer;
+    private final Box2DDebugRenderer debugRenderer;
+    private final OrthographicCamera camera;
+    private final ShapeRenderer shapeRenderer;
 
-    private GameStateManager gameStateManager;
+    // 핵심 관리자 클래스들
+    private final GameStateManager gameStateManager;
+    private final EntityManager entityManager;
 
-    private Array<DamageBox> damageBoxes;
-    private float damageTimer = 0f;
-    private final float DAMAGE_CHECK_RATE = 0.5f;
-
-    // --- 즉사 박스 관련 필드 추가 ---
-    private Array<InstantKillBox> killBoxes;
-
-    // --- Checkpoint 관련 필드 ---
-    private Array<Checkpoint> checkpoints;
-    private final float CHECKPOINT_INTERACT_DISTANCE = 1.5f;
-    private Label interactPromptLabel;
-    private Checkpoint currentInteractableCheckpoint;
-
-    private Stage stage;
+    private final Stage stage;
     private Skin skin;
     private HealthBar healthBar;
     private Label gameOverLabel;
+    private Label interactPromptLabel;
 
     private static final float WORLD_WIDTH = 16f;
     private static final float WORLD_HEIGHT = 9f;
@@ -70,41 +59,22 @@ public class GameScreen implements Screen {
         createPlayer();
         worldManager.createDefaultStage();
 
-        createDamageBoxes();
-        createInstantKillBoxes(); // 즉사 박스 생성 호출
-        createCheckpoints();
-
         loadSkin();
         setupUI();
 
+        // GameStateManager는 Player 및 UI 관리
         gameStateManager = new GameStateManager(game, player, gameOverLabel);
         gameStateManager.setCheckpoint(3f, 5f);
+
+        // EntityManager는 GameStateManager와 Player를 기반으로 엔티티 로직 관리
+        entityManager = new EntityManager(gameStateManager, player);
     }
 
     private void createPlayer() {
         player = new Player(worldManager.getWorld(), 3f, 5f);
     }
 
-    private void createDamageBoxes() {
-        damageBoxes = new Array<>();
-        damageBoxes.add(new DamageBox(10f, 1f, 3f, 0.5f, 5f, DAMAGE_CHECK_RATE));
-        damageBoxes.add(new DamageBox(20f, 5f, 2f, 2f, 10f, DAMAGE_CHECK_RATE));
-    }
-
-    // --- 즉사 박스 생성 메서드 추가 ---
-    private void createInstantKillBoxes() {
-        killBoxes = new Array<>();
-        // 예시 즉사 박스: 맵의 가장 아래 (낙사 지점)
-        killBoxes.add(new InstantKillBox(-10f, -5f, 50f, 4f));
-        // 예시 즉사 박스 2: 특정 지점 (25, 0.5)
-        killBoxes.add(new InstantKillBox(25f, 0.5f, 3f, 0.5f));
-    }
-
-    private void createCheckpoints() {
-        checkpoints = new Array<>();
-        checkpoints.add(new Checkpoint(8f, 1.5f, 1f, 2f, 8f, 2.5f));
-        checkpoints.add(new Checkpoint(30f, 7.5f, 1f, 2f, 30f, 8.5f));
-    }
+    // 엔티티 생성/관리 메서드 제거됨
 
     private void loadSkin() {
         String[] potentialPaths = {"skin/uiskin.json", "data/uiskin.json", "uiskin.json"};
@@ -150,98 +120,7 @@ public class GameScreen implements Screen {
         }
     }
 
-    /**
-     * 이름 변경: checkDamage() -> checkHazards()
-     * 데미지 박스와 즉사 박스 충돌을 모두 검사합니다.
-     */
-    private void checkHazards(float delta) {
-        if (!player.isAlive()) return;
-
-        com.badlogic.gdx.math.Rectangle playerBounds = player.getBounds();
-        boolean killed = false;
-
-        // 1. 즉사 박스 충돌 검사
-        for (InstantKillBox killBox : killBoxes) {
-            if (playerBounds.overlaps(killBox.getBounds())) {
-                player.takeDamage(player.getMaxHealth()); // 체력과 무관하게 즉사 처리
-                killed = true;
-                break;
-            }
-        }
-
-        if (killed) {
-            gameStateManager.handleGameOver();
-            return;
-        }
-
-        // 2. 일반 데미지 박스 충돌 검사
-        damageTimer += delta;
-        if (damageTimer >= DAMAGE_CHECK_RATE) {
-
-            for (DamageBox box : damageBoxes) {
-                if (playerBounds.overlaps(box.getBounds())) {
-                    player.takeDamage(box.getDamageAmount());
-
-                    if (!player.isAlive()) {
-                        gameStateManager.handleGameOver();
-                        break;
-                    }
-                }
-            }
-            damageTimer -= DAMAGE_CHECK_RATE;
-        }
-    }
-
-    private void checkCheckpointInteraction() {
-        if (gameStateManager.isGameOver() || !player.isAlive()) {
-            interactPromptLabel.setVisible(false);
-            currentInteractableCheckpoint = null;
-            return;
-        }
-
-        currentInteractableCheckpoint = null;
-        Body playerBody = player.getBody();
-
-        for (Checkpoint cp : checkpoints) {
-            if (cp.isPlayerNear(
-                playerBody.getPosition().x,
-                playerBody.getPosition().y,
-                CHECKPOINT_INTERACT_DISTANCE)) {
-
-                currentInteractableCheckpoint = cp;
-                break;
-            }
-        }
-
-        if (currentInteractableCheckpoint != null) {
-            interactPromptLabel.setVisible(true);
-
-            if (currentInteractableCheckpoint.isActivated()) {
-                interactPromptLabel.setText("Press C to Re-set Checkpoint");
-            } else {
-                interactPromptLabel.setText("Press C to Set Checkpoint");
-            }
-
-            if (Gdx.input.isKeyJustPressed(Input.Keys.C)) {
-
-                for (Checkpoint cp : checkpoints) {
-                    cp.deactivate();
-                }
-
-                currentInteractableCheckpoint.activate();
-                gameStateManager.setCheckpoint(
-                    currentInteractableCheckpoint.getSpawnPosition().x,
-                    currentInteractableCheckpoint.getSpawnPosition().y
-                );
-
-                interactPromptLabel.setText("Checkpoint Saved!");
-            }
-        } else {
-            interactPromptLabel.setVisible(false);
-            interactPromptLabel.setText("Press C to Set Checkpoint");
-        }
-    }
-
+    // checkHazards() 및 checkCheckpointInteraction() 메서드 제거됨
 
     @Override
     public void show() {
@@ -257,10 +136,10 @@ public class GameScreen implements Screen {
         if (!isGameOver) {
             worldManager.getWorld().step(delta, 6, 2);
             player.update(delta);
-            checkHazards(delta); // checkHazards() 호출
-            checkCheckpointInteraction();
+            entityManager.update(delta); // 엔티티 로직 및 충돌 처리 위임
         }
 
+        // 카메라 및 화면 클리어 로직 (유지)
         camera.position.x = player.getBody().getPosition().x;
         camera.position.y = player.getBody().getPosition().y;
         camera.update();
@@ -276,7 +155,9 @@ public class GameScreen implements Screen {
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
-        // 플레이어 시각화
+        // --- 렌더링 로직 (EntityManager의 엔티티들을 가져와서 그림) ---
+
+        // 1. 플레이어 시각화
         Body pb = player.getBody();
         if (isGameOver) {
             float alpha = (float)(0.5 + 0.5 * Math.sin(Gdx.graphics.getFrameId() * 0.2));
@@ -291,22 +172,22 @@ public class GameScreen implements Screen {
             0.6f, 1.0f
         );
 
-        // --- 즉사 박스 시각화 (빨간색, 짙은 투명도) ---
+        // 2. 즉사 박스 시각화
         shapeRenderer.setColor(1f, 0f, 0f, 0.8f);
-        for (InstantKillBox killBox : killBoxes) {
+        for (InstantKillBox killBox : entityManager.getKillBoxes()) {
             com.badlogic.gdx.math.Rectangle rect = killBox.getBounds();
             shapeRenderer.rect(rect.x, rect.y, rect.width, rect.height);
         }
 
-        // 데미지 박스 시각화 (주황색, 보통 투명도)
-        shapeRenderer.setColor(1f, 0.5f, 0f, 0.5f); // 색상 변경
-        for (DamageBox box : damageBoxes) {
+        // 3. 데미지 박스 시각화
+        shapeRenderer.setColor(1f, 0.5f, 0f, 0.5f);
+        for (DamageBox box : entityManager.getDamageBoxes()) {
             com.badlogic.gdx.math.Rectangle rect = box.getBounds();
             shapeRenderer.rect(rect.x, rect.y, rect.width, rect.height);
         }
 
-        // 체크포인트 시각화
-        for (Checkpoint cp : checkpoints) {
+        // 4. 체크포인트 시각화
+        for (Checkpoint cp : entityManager.getCheckpoints()) {
             com.badlogic.gdx.math.Rectangle rect = cp.getBounds();
             if (cp.isActivated()) {
                 shapeRenderer.setColor(0.1f, 0.8f, 0.1f, 0.9f);
@@ -318,6 +199,15 @@ public class GameScreen implements Screen {
 
         shapeRenderer.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);
+
+        // --- UI 업데이트 및 렌더링 ---
+
+        // 1. 상호작용 프롬프트 UI 업데이트
+        interactPromptLabel.setVisible(entityManager.isInteractPromptVisible());
+        if (entityManager.isInteractPromptVisible()) {
+            interactPromptLabel.setText(entityManager.getInteractPromptText());
+            interactPromptLabel.pack(); // 텍스트 변경 시 레이블 크기 재조정
+        }
 
         stage.act(delta);
         stage.draw();
@@ -363,5 +253,9 @@ public class GameScreen implements Screen {
 
         if (skin != null) skin.dispose();
         if (stage != null) stage.dispose();
+    }
+
+    public Main getGame() {
+        return game;
     }
 }
