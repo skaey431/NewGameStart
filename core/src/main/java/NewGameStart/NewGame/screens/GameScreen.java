@@ -3,6 +3,7 @@ package NewGameStart.NewGame.screens;
 import NewGameStart.NewGame.Main;
 import NewGameStart.NewGame.entities.DamageBox;
 import NewGameStart.NewGame.entities.Checkpoint;
+import NewGameStart.NewGame.entities.InstantKillBox; // InstantKillBox import
 import NewGameStart.NewGame.entities.player.Player;
 import NewGameStart.NewGame.screens.UI.HealthBar;
 import NewGameStart.NewGame.screens.managers.GameStateManager;
@@ -38,11 +39,14 @@ public class GameScreen implements Screen {
     private float damageTimer = 0f;
     private final float DAMAGE_CHECK_RATE = 0.5f;
 
+    // --- 즉사 박스 관련 필드 추가 ---
+    private Array<InstantKillBox> killBoxes;
+
     // --- Checkpoint 관련 필드 ---
     private Array<Checkpoint> checkpoints;
     private final float CHECKPOINT_INTERACT_DISTANCE = 1.5f;
     private Label interactPromptLabel;
-    private Checkpoint currentInteractableCheckpoint; // 현재 상호작용 가능한 체크포인트 (근처에 있는 것)
+    private Checkpoint currentInteractableCheckpoint;
 
     private Stage stage;
     private Skin skin;
@@ -67,13 +71,13 @@ public class GameScreen implements Screen {
         worldManager.createDefaultStage();
 
         createDamageBoxes();
+        createInstantKillBoxes(); // 즉사 박스 생성 호출
         createCheckpoints();
 
         loadSkin();
         setupUI();
 
         gameStateManager = new GameStateManager(game, player, gameOverLabel);
-        // 초기 스폰 위치 설정
         gameStateManager.setCheckpoint(3f, 5f);
     }
 
@@ -85,6 +89,15 @@ public class GameScreen implements Screen {
         damageBoxes = new Array<>();
         damageBoxes.add(new DamageBox(10f, 1f, 3f, 0.5f, 5f, DAMAGE_CHECK_RATE));
         damageBoxes.add(new DamageBox(20f, 5f, 2f, 2f, 10f, DAMAGE_CHECK_RATE));
+    }
+
+    // --- 즉사 박스 생성 메서드 추가 ---
+    private void createInstantKillBoxes() {
+        killBoxes = new Array<>();
+        // 예시 즉사 박스: 맵의 가장 아래 (낙사 지점)
+        killBoxes.add(new InstantKillBox(-10f, -5f, 50f, 4f));
+        // 예시 즉사 박스 2: 특정 지점 (25, 0.5)
+        killBoxes.add(new InstantKillBox(25f, 0.5f, 3f, 0.5f));
     }
 
     private void createCheckpoints() {
@@ -137,13 +150,33 @@ public class GameScreen implements Screen {
         }
     }
 
-    private void checkDamage(float delta) {
+    /**
+     * 이름 변경: checkDamage() -> checkHazards()
+     * 데미지 박스와 즉사 박스 충돌을 모두 검사합니다.
+     */
+    private void checkHazards(float delta) {
         if (!player.isAlive()) return;
 
-        damageTimer += delta;
+        com.badlogic.gdx.math.Rectangle playerBounds = player.getBounds();
+        boolean killed = false;
 
+        // 1. 즉사 박스 충돌 검사
+        for (InstantKillBox killBox : killBoxes) {
+            if (playerBounds.overlaps(killBox.getBounds())) {
+                player.takeDamage(player.getMaxHealth()); // 체력과 무관하게 즉사 처리
+                killed = true;
+                break;
+            }
+        }
+
+        if (killed) {
+            gameStateManager.handleGameOver();
+            return;
+        }
+
+        // 2. 일반 데미지 박스 충돌 검사
+        damageTimer += delta;
         if (damageTimer >= DAMAGE_CHECK_RATE) {
-            com.badlogic.gdx.math.Rectangle playerBounds = player.getBounds();
 
             for (DamageBox box : damageBoxes) {
                 if (playerBounds.overlaps(box.getBounds())) {
@@ -159,9 +192,6 @@ public class GameScreen implements Screen {
         }
     }
 
-    /**
-     * 체크포인트 상호작용을 처리합니다. 이제 활성화된 체크포인트도 다시 설정 가능합니다.
-     */
     private void checkCheckpointInteraction() {
         if (gameStateManager.isGameOver() || !player.isAlive()) {
             interactPromptLabel.setVisible(false);
@@ -172,7 +202,6 @@ public class GameScreen implements Screen {
         currentInteractableCheckpoint = null;
         Body playerBody = player.getBody();
 
-        // 1. 플레이어 근처의 체크포인트를 찾습니다. (활성화 여부 무관)
         for (Checkpoint cp : checkpoints) {
             if (cp.isPlayerNear(
                 playerBody.getPosition().x,
@@ -184,11 +213,9 @@ public class GameScreen implements Screen {
             }
         }
 
-        // 2. 상호작용 프롬프트 표시 및 입력 처리
         if (currentInteractableCheckpoint != null) {
             interactPromptLabel.setVisible(true);
 
-            // 현재 체크포인트가 이미 활성화된 상태인지 확인하여 텍스트를 조정합니다.
             if (currentInteractableCheckpoint.isActivated()) {
                 interactPromptLabel.setText("Press C to Re-set Checkpoint");
             } else {
@@ -197,24 +224,21 @@ public class GameScreen implements Screen {
 
             if (Gdx.input.isKeyJustPressed(Input.Keys.C)) {
 
-                // 3. 모든 체크포인트 비활성화
                 for (Checkpoint cp : checkpoints) {
                     cp.deactivate();
                 }
 
-                // 4. 현재 체크포인트 활성화 및 GameStateManager 업데이트
                 currentInteractableCheckpoint.activate();
                 gameStateManager.setCheckpoint(
                     currentInteractableCheckpoint.getSpawnPosition().x,
                     currentInteractableCheckpoint.getSpawnPosition().y
                 );
 
-                // 설정 완료 메시지 출력
                 interactPromptLabel.setText("Checkpoint Saved!");
             }
         } else {
             interactPromptLabel.setVisible(false);
-            interactPromptLabel.setText("Press C to Set Checkpoint"); // 기본 텍스트로 리셋
+            interactPromptLabel.setText("Press C to Set Checkpoint");
         }
     }
 
@@ -233,7 +257,7 @@ public class GameScreen implements Screen {
         if (!isGameOver) {
             worldManager.getWorld().step(delta, 6, 2);
             player.update(delta);
-            checkDamage(delta);
+            checkHazards(delta); // checkHazards() 호출
             checkCheckpointInteraction();
         }
 
@@ -267,8 +291,15 @@ public class GameScreen implements Screen {
             0.6f, 1.0f
         );
 
-        // 데미지 박스 시각화
-        shapeRenderer.setColor(1f, 0f, 0f, 0.5f);
+        // --- 즉사 박스 시각화 (빨간색, 짙은 투명도) ---
+        shapeRenderer.setColor(1f, 0f, 0f, 0.8f);
+        for (InstantKillBox killBox : killBoxes) {
+            com.badlogic.gdx.math.Rectangle rect = killBox.getBounds();
+            shapeRenderer.rect(rect.x, rect.y, rect.width, rect.height);
+        }
+
+        // 데미지 박스 시각화 (주황색, 보통 투명도)
+        shapeRenderer.setColor(1f, 0.5f, 0f, 0.5f); // 색상 변경
         for (DamageBox box : damageBoxes) {
             com.badlogic.gdx.math.Rectangle rect = box.getBounds();
             shapeRenderer.rect(rect.x, rect.y, rect.width, rect.height);
@@ -277,11 +308,10 @@ public class GameScreen implements Screen {
         // 체크포인트 시각화
         for (Checkpoint cp : checkpoints) {
             com.badlogic.gdx.math.Rectangle rect = cp.getBounds();
-            // 활성화 상태에 따라 색상 변경
             if (cp.isActivated()) {
-                shapeRenderer.setColor(0.1f, 0.8f, 0.1f, 0.9f); // 녹색 (현재 활성화됨)
+                shapeRenderer.setColor(0.1f, 0.8f, 0.1f, 0.9f);
             } else {
-                shapeRenderer.setColor(0.1f, 0.1f, 0.8f, 0.7f); // 파란색 (비활성화)
+                shapeRenderer.setColor(0.1f, 0.1f, 0.8f, 0.7f);
             }
             shapeRenderer.rect(rect.x, rect.y, rect.width, rect.height);
         }
@@ -289,11 +319,9 @@ public class GameScreen implements Screen {
         shapeRenderer.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);
 
-        // UI 렌더링
         stage.act(delta);
         stage.draw();
 
-        // UI 위치 업데이트
         if (healthBar != null) {
             healthBar.setPosition(20, Gdx.graphics.getHeight() - healthBar.getHeight() - 20);
         }
