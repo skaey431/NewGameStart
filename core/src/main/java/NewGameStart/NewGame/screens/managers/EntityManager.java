@@ -3,6 +3,7 @@ package NewGameStart.NewGame.screens.managers;
 import NewGameStart.NewGame.entities.DamageBox;
 import NewGameStart.NewGame.entities.InstantKillBox;
 import NewGameStart.NewGame.entities.Checkpoint;
+import NewGameStart.NewGame.entities.monster.StaticMonster;
 import NewGameStart.NewGame.entities.player.Player;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
@@ -20,12 +21,12 @@ public class EntityManager {
     private Array<DamageBox> damageBoxes;
     private Array<InstantKillBox> killBoxes;
     private Array<Checkpoint> checkpoints;
+    private Array<StaticMonster> monsters;
 
     private float damageTimer = 0f;
-    private final float DAMAGE_CHECK_RATE = 0.5f;
+    private final float DAMAGE_CHECK_RATE = 0.5f; // 0.5초마다 데미지 체크
     private final float CHECKPOINT_INTERACT_DISTANCE = 1.5f;
 
-    // UI 레이블을 직접 참조하지 않고, 상호작용 프롬프트 텍스트를 GameScreen에 전달하기 위한 필드
     private String interactPromptText = null;
     private boolean isInteractPromptVisible = false;
 
@@ -40,34 +41,41 @@ public class EntityManager {
     private void createHazards() {
         damageBoxes = new Array<>();
         killBoxes = new Array<>();
+        monsters = new Array<>();
 
-        // 데미지 박스 예시 (기존 GameScreen에서 이동)
+        // --- DamageBox 예시 ---
+        // (x, y, width, height, damageAmount, damageRate)
         damageBoxes.add(new DamageBox(10f, 1f, 3f, 0.5f, 5f, DAMAGE_CHECK_RATE));
         damageBoxes.add(new DamageBox(20f, 5f, 2f, 2f, 10f, DAMAGE_CHECK_RATE));
 
-        // 즉사 박스 예시 (기존 GameScreen에서 이동)
+        // --- InstantKillBox 예시 ---
+        // (x, y, width, height)
         killBoxes.add(new InstantKillBox(-10f, -5f, 50f, 4f));
         killBoxes.add(new InstantKillBox(25f, 0.5f, 3f, 0.5f));
+
+        // --- StaticMonster 예시 (BaseEntity 상속 시 몬스터 체력 100으로 고정) ---
+        // (initialHealth, x, y, width, height, attackDamage)
+        monsters.add(new StaticMonster(100f, 15f, 2.5f, 1f, 1f, 20f)); // 체력 100, 공격력 20
+        monsters.add(new StaticMonster(100f, 40f, 5f, 1f, 2f, 30f)); // 체력 100, 공격력 30
     }
 
     private void createCheckpoints() {
         checkpoints = new Array<>();
 
-        // 체크포인트 예시 (기존 GameScreen에서 이동)
+        // (x, y, width, height, spawnX, spawnY)
         checkpoints.add(new Checkpoint(8f, 1.5f, 1f, 2f, 8f, 2.5f));
         checkpoints.add(new Checkpoint(30f, 7.5f, 1f, 2f, 30f, 8.5f));
     }
 
-    /**
-     * 모든 엔티티의 로직을 업데이트하고 플레이어와의 충돌을 처리합니다.
-     */
     public void update(float delta) {
         if (!player.isAlive()) return;
 
-        // 1. 위험 요소 충돌 처리
-        checkHazards(delta);
+        // 몬스터 상태 업데이트 (BaseEntity의 update() 구현 호출)
+        for (StaticMonster monster : monsters) {
+            monster.update(delta);
+        }
 
-        // 2. 체크포인트 상호작용 처리
+        checkHazards(delta);
         checkCheckpointInteraction();
     }
 
@@ -75,36 +83,46 @@ public class EntityManager {
         if (!player.isAlive()) return;
 
         Rectangle playerBounds = player.getBounds();
-        boolean killed = false;
 
-        // 1. 즉사 박스 충돌 검사
+        // 1. 즉사 박스 충돌 검사 (닿는 즉시 사망 - 시간 제한 없음)
         for (InstantKillBox killBox : killBoxes) {
             if (playerBounds.overlaps(killBox.getBounds())) {
                 player.takeDamage(player.getMaxHealth());
-                killed = true;
-                break;
+                gameStateManager.handleGameOver();
+                return;
             }
         }
 
-        if (killed) {
-            gameStateManager.handleGameOver();
-            return;
-        }
-
-        // 2. 일반 데미지 박스 충돌 검사
+        // 2. 일반 데미지 및 몬스터 충돌 검사 (시간 제한 적용)
         damageTimer += delta;
         if (damageTimer >= DAMAGE_CHECK_RATE) {
 
+            // 2-1. StaticMonster 충돌 검사 (시간 제한 적용)
+            for (StaticMonster monster : monsters) {
+                // 몬스터가 살아있고 플레이어와 닿았을 때만 피해 적용
+                if (monster.isAlive() && playerBounds.overlaps(monster.getBounds())) {
+                    // 몬스터가 가진 attackDamage만큼 플레이어에게 피해를 입힙니다.
+                    player.takeDamage(monster.getAttackDamage());
+
+                    if (!player.isAlive()) {
+                        gameStateManager.handleGameOver();
+                        return;
+                    }
+                }
+            }
+
+            // 2-2. DamageBox 충돌 검사 (시간 제한 적용)
             for (DamageBox box : damageBoxes) {
                 if (playerBounds.overlaps(box.getBounds())) {
                     player.takeDamage(box.getDamageAmount());
 
                     if (!player.isAlive()) {
                         gameStateManager.handleGameOver();
-                        break;
+                        return;
                     }
                 }
             }
+
             damageTimer -= DAMAGE_CHECK_RATE;
         }
     }
@@ -117,7 +135,6 @@ public class EntityManager {
 
         Checkpoint currentInteractableCheckpoint = null;
 
-        // 1. 플레이어 근처의 체크포인트를 찾습니다.
         for (Checkpoint cp : checkpoints) {
             if (cp.isPlayerNear(
                 player.getBody().getPosition().x,
@@ -129,7 +146,6 @@ public class EntityManager {
             }
         }
 
-        // 2. 상호작용 프롬프트 텍스트 설정
         if (currentInteractableCheckpoint != null) {
             isInteractPromptVisible = true;
 
@@ -139,15 +155,12 @@ public class EntityManager {
                 interactPromptText = "Press C to Set Checkpoint";
             }
 
-            // 3. 키 입력 처리
             if (Gdx.input.isKeyJustPressed(Input.Keys.C)) {
 
-                // 모든 체크포인트 비활성화
                 for (Checkpoint cp : checkpoints) {
                     cp.deactivate();
                 }
 
-                // 현재 체크포인트 활성화 및 GameStateManager 업데이트
                 currentInteractableCheckpoint.activate();
                 gameStateManager.setCheckpoint(
                     currentInteractableCheckpoint.getSpawnPosition().x,
@@ -158,11 +171,12 @@ public class EntityManager {
             }
         } else {
             isInteractPromptVisible = false;
-            interactPromptText = "Press C to Set Checkpoint"; // 기본 텍스트 리셋
+            interactPromptText = "Press C to Set Checkpoint";
         }
     }
 
     // --- GameScreen이 렌더링을 위해 사용하는 Getter 메서드 ---
+
     public Array<DamageBox> getDamageBoxes() {
         return damageBoxes;
     }
@@ -173,6 +187,10 @@ public class EntityManager {
 
     public Array<Checkpoint> getCheckpoints() {
         return checkpoints;
+    }
+
+    public Array<StaticMonster> getMonsters() {
+        return monsters;
     }
 
     public String getInteractPromptText() {

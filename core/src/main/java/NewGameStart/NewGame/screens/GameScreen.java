@@ -4,10 +4,11 @@ import NewGameStart.NewGame.Main;
 import NewGameStart.NewGame.entities.DamageBox;
 import NewGameStart.NewGame.entities.Checkpoint;
 import NewGameStart.NewGame.entities.InstantKillBox;
+import NewGameStart.NewGame.entities.monster.StaticMonster; // StaticMonster import
 import NewGameStart.NewGame.entities.player.Player;
 import NewGameStart.NewGame.screens.UI.HealthBar;
 import NewGameStart.NewGame.screens.managers.GameStateManager;
-import NewGameStart.NewGame.screens.managers.EntityManager; // EntityManager import
+import NewGameStart.NewGame.screens.managers.EntityManager;
 import NewGameStart.NewGame.world.WorldManager;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
@@ -21,22 +22,22 @@ import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 
 public class GameScreen implements Screen {
 
     private final Main game;
-    private final WorldManager worldManager;
+    private WorldManager worldManager;
     private Player player;
-    private final Box2DDebugRenderer debugRenderer;
-    private final OrthographicCamera camera;
-    private final ShapeRenderer shapeRenderer;
+    private Box2DDebugRenderer debugRenderer;
+    private OrthographicCamera camera;
+    private ShapeRenderer shapeRenderer;
 
-    // 핵심 관리자 클래스들
-    private final GameStateManager gameStateManager;
-    private final EntityManager entityManager;
+    private GameStateManager gameStateManager;
+    private EntityManager entityManager;
 
-    private final Stage stage;
+    private Stage stage;
     private Skin skin;
     private HealthBar healthBar;
     private Label gameOverLabel;
@@ -62,19 +63,15 @@ public class GameScreen implements Screen {
         loadSkin();
         setupUI();
 
-        // GameStateManager는 Player 및 UI 관리
         gameStateManager = new GameStateManager(game, player, gameOverLabel);
         gameStateManager.setCheckpoint(3f, 5f);
 
-        // EntityManager는 GameStateManager와 Player를 기반으로 엔티티 로직 관리
         entityManager = new EntityManager(gameStateManager, player);
     }
 
     private void createPlayer() {
         player = new Player(worldManager.getWorld(), 3f, 5f);
     }
-
-    // 엔티티 생성/관리 메서드 제거됨
 
     private void loadSkin() {
         String[] potentialPaths = {"skin/uiskin.json", "data/uiskin.json", "uiskin.json"};
@@ -120,8 +117,6 @@ public class GameScreen implements Screen {
         }
     }
 
-    // checkHazards() 및 checkCheckpointInteraction() 메서드 제거됨
-
     @Override
     public void show() {
         Gdx.input.setInputProcessor(stage);
@@ -136,10 +131,9 @@ public class GameScreen implements Screen {
         if (!isGameOver) {
             worldManager.getWorld().step(delta, 6, 2);
             player.update(delta);
-            entityManager.update(delta); // 엔티티 로직 및 충돌 처리 위임
+            entityManager.update(delta);
         }
 
-        // 카메라 및 화면 클리어 로직 (유지)
         camera.position.x = player.getBody().getPosition().x;
         camera.position.y = player.getBody().getPosition().y;
         camera.update();
@@ -155,7 +149,7 @@ public class GameScreen implements Screen {
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
-        // --- 렌더링 로직 (EntityManager의 엔티티들을 가져와서 그림) ---
+        // --- 렌더링 로직 ---
 
         // 1. 플레이어 시각화
         Body pb = player.getBody();
@@ -179,14 +173,21 @@ public class GameScreen implements Screen {
             shapeRenderer.rect(rect.x, rect.y, rect.width, rect.height);
         }
 
-        // 3. 데미지 박스 시각화
+        // 3. StaticMonster 시각화 (보라색으로 구분)
+        shapeRenderer.setColor(0.5f, 0f, 0.5f, 0.9f);
+        for (StaticMonster monster : entityManager.getMonsters()) {
+            com.badlogic.gdx.math.Rectangle rect = monster.getBounds();
+            shapeRenderer.rect(rect.x, rect.y, rect.width, rect.height);
+        }
+
+        // 4. 데미지 박스 시각화
         shapeRenderer.setColor(1f, 0.5f, 0f, 0.5f);
         for (DamageBox box : entityManager.getDamageBoxes()) {
             com.badlogic.gdx.math.Rectangle rect = box.getBounds();
             shapeRenderer.rect(rect.x, rect.y, rect.width, rect.height);
         }
 
-        // 4. 체크포인트 시각화
+        // 5. 체크포인트 시각화
         for (Checkpoint cp : entityManager.getCheckpoints()) {
             com.badlogic.gdx.math.Rectangle rect = cp.getBounds();
             if (cp.isActivated()) {
@@ -202,11 +203,10 @@ public class GameScreen implements Screen {
 
         // --- UI 업데이트 및 렌더링 ---
 
-        // 1. 상호작용 프롬프트 UI 업데이트
         interactPromptLabel.setVisible(entityManager.isInteractPromptVisible());
         if (entityManager.isInteractPromptVisible()) {
             interactPromptLabel.setText(entityManager.getInteractPromptText());
-            interactPromptLabel.pack(); // 텍스트 변경 시 레이블 크기 재조정
+            interactPromptLabel.pack();
         }
 
         stage.act(delta);
@@ -253,9 +253,5 @@ public class GameScreen implements Screen {
 
         if (skin != null) skin.dispose();
         if (stage != null) stage.dispose();
-    }
-
-    public Main getGame() {
-        return game;
     }
 }
