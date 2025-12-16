@@ -4,7 +4,7 @@ import NewGameStart.NewGame.Main;
 import NewGameStart.NewGame.entities.DamageBox;
 import NewGameStart.NewGame.entities.Checkpoint;
 import NewGameStart.NewGame.entities.InstantKillBox;
-import NewGameStart.NewGame.entities.monster.StaticMonster; // StaticMonster import
+import NewGameStart.NewGame.entities.monster.StaticMonster;
 import NewGameStart.NewGame.entities.player.Player;
 import NewGameStart.NewGame.screens.UI.HealthBar;
 import NewGameStart.NewGame.screens.managers.GameStateManager;
@@ -39,7 +39,7 @@ public class GameScreen implements Screen {
 
     private Stage stage;
     private Skin skin;
-    private HealthBar healthBar;
+    private HealthBar playerHealthBar; // 플레이어 체력바 이름 변경
     private Label gameOverLabel;
     private Label interactPromptLabel;
 
@@ -94,9 +94,10 @@ public class GameScreen implements Screen {
     private void setupUI() {
         if (skin != null) {
             try {
-                healthBar = new HealthBar(skin, player);
-                healthBar.setPosition(20, Gdx.graphics.getHeight() - healthBar.getHeight() - 20);
-                stage.addActor(healthBar);
+                // 플레이어 체력바 설정
+                playerHealthBar = new HealthBar(skin, player);
+                playerHealthBar.setPosition(20, Gdx.graphics.getHeight() - playerHealthBar.getHeight() - 20);
+                stage.addActor(playerHealthBar);
 
                 gameOverLabel = new Label("GAME OVER\n(Respawning...)", skin);
                 gameOverLabel.setFontScale(2.0f);
@@ -110,7 +111,7 @@ public class GameScreen implements Screen {
 
             } catch (RuntimeException e) {
                 Gdx.app.error("GameScreen", "Failed to setup UI (Skin element missing): " + e.getMessage());
-                healthBar = null;
+                playerHealthBar = null;
                 gameOverLabel = null;
                 interactPromptLabel = null;
             }
@@ -173,11 +174,36 @@ public class GameScreen implements Screen {
             shapeRenderer.rect(rect.x, rect.y, rect.width, rect.height);
         }
 
-        // 3. StaticMonster 시각화 (보라색으로 구분)
-        shapeRenderer.setColor(0.5f, 0f, 0.5f, 0.9f);
+        // 3. StaticMonster 시각화 (보라색으로 구분) 및 체력바 렌더링 로직
         for (StaticMonster monster : entityManager.getMonsters()) {
             com.badlogic.gdx.math.Rectangle rect = monster.getBounds();
-            shapeRenderer.rect(rect.x, rect.y, rect.width, rect.height);
+
+            if (monster.isAlive()) {
+                // 3-1. 몬스터 본체 렌더링 (보라색)
+                shapeRenderer.setColor(0.5f, 0f, 0.5f, 0.9f);
+                shapeRenderer.rect(rect.x, rect.y, rect.width, rect.height);
+
+                // 3-2. 몬스터 체력바 배경 렌더링 (검은색)
+                float barWidth = rect.width * 1.5f; // 몬스터 너비보다 조금 넓게
+                float barHeight = 0.15f;
+                float barX = rect.x - (barWidth - rect.width) / 2;
+                float barY = rect.y + rect.height + 0.1f; // 몬스터 위쪽
+
+                shapeRenderer.setColor(0.1f, 0.1f, 0.1f, 0.9f); // 배경 (어둡게)
+                shapeRenderer.rect(barX, barY, barWidth, barHeight);
+
+                // 3-3. 몬스터 현재 체력 바 렌더링 (초록색)
+                float healthRatio = monster.getCurrentHealth() / monster.getMaxHealth();
+                float currentBarWidth = barWidth * healthRatio;
+
+                shapeRenderer.setColor(0f, 0.8f, 0f, 1f); // 체력 (밝은 초록)
+                shapeRenderer.rect(barX, barY, currentBarWidth, barHeight);
+
+            } else {
+                // 몬스터 사망 시 시각화 (선택적: 예시로 옅은 회색)
+                shapeRenderer.setColor(0.3f, 0.3f, 0.3f, 0.5f);
+                shapeRenderer.rect(rect.x, rect.y, rect.width, rect.height);
+            }
         }
 
         // 4. 데미지 박스 시각화
@@ -201,7 +227,7 @@ public class GameScreen implements Screen {
         shapeRenderer.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);
 
-        // --- UI 업데이트 및 렌더링 ---
+        // --- UI 업데이트 및 렌더링 (플레이어 체력바 포함) ---
 
         interactPromptLabel.setVisible(entityManager.isInteractPromptVisible());
         if (entityManager.isInteractPromptVisible()) {
@@ -212,8 +238,9 @@ public class GameScreen implements Screen {
         stage.act(delta);
         stage.draw();
 
-        if (healthBar != null) {
-            healthBar.setPosition(20, Gdx.graphics.getHeight() - healthBar.getHeight() - 20);
+        // 플레이어 체력바 위치 업데이트
+        if (playerHealthBar != null) {
+            playerHealthBar.setPosition(20, Gdx.graphics.getHeight() - playerHealthBar.getHeight() - 20);
         }
     }
 
@@ -238,6 +265,11 @@ public class GameScreen implements Screen {
                 (stage.getWidth() - interactPromptLabel.getWidth()) / 2,
                 50
             );
+        }
+
+        // 플레이어 체력바 위치 업데이트
+        if (playerHealthBar != null) {
+            playerHealthBar.setPosition(20, height - playerHealthBar.getHeight() - 20);
         }
     }
 
