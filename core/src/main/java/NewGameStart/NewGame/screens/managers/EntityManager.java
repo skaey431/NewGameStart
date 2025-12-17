@@ -34,6 +34,9 @@ public class EntityManager {
         this.gameStateManager = gameStateManager;
         this.player = player;
 
+        // [수정된 부분] Player 클래스에 추가된 setEntityManager를 호출하여 상호 참조를 설정합니다.
+        this.player.setEntityManager(this);
+
         createHazards();
         createCheckpoints();
     }
@@ -44,19 +47,16 @@ public class EntityManager {
         monsters = new Array<>();
 
         // --- DamageBox 예시 ---
-        // (x, y, width, height, damageAmount, damageRate)
         damageBoxes.add(new DamageBox(10f, 1f, 3f, 0.5f, 5f, DAMAGE_CHECK_RATE));
         damageBoxes.add(new DamageBox(20f, 5f, 2f, 2f, 10f, DAMAGE_CHECK_RATE));
 
         // --- InstantKillBox 예시 ---
-        // (x, y, width, height)
         killBoxes.add(new InstantKillBox(-10f, -5f, 50f, 4f));
         killBoxes.add(new InstantKillBox(25f, 0.5f, 3f, 0.5f));
 
-        // --- StaticMonster 예시 (BaseEntity 상속 시 몬스터 체력 100으로 고정) ---
-        // (initialHealth, x, y, width, height, attackDamage)
-        monsters.add(new StaticMonster(100f, 15f, 2.5f, 1f, 1f, 20f)); // 체력 100, 공격력 20
-        monsters.add(new StaticMonster(100f, 40f, 5f, 1f, 2f, 30f)); // 체력 100, 공격력 30
+        // --- StaticMonster 예시 ---
+        monsters.add(new StaticMonster(100f, 15f, 2.5f, 1f, 1f, 20f));
+        monsters.add(new StaticMonster(100f, 40f, 5f, 1f, 2f, 30f));
     }
 
     private void createCheckpoints() {
@@ -67,10 +67,22 @@ public class EntityManager {
         checkpoints.add(new Checkpoint(30f, 7.5f, 1f, 2f, 30f, 8.5f));
     }
 
+    // [신규 추가 메서드] 플레이어의 공격 상태에서 호출됩니다.
+    public void processPlayerAttack() {
+        Rectangle attackArea = player.getAttackHitbox();
+        for (StaticMonster monster : monsters) {
+            // 몬스터가 살아있고 플레이어의 공격 범위와 겹칠 경우 데미지 적용
+            if (monster.isAlive() && attackArea.overlaps(monster.getBounds())) {
+                monster.takeDamage(25f); // 공격 데미지 25 (조정 가능)
+                Gdx.app.log("Combat", "Monster hit! Remaining HP: " + monster.getCurrentHealth());
+            }
+        }
+    }
+
     public void update(float delta) {
         if (!player.isAlive()) return;
 
-        // 몬스터 상태 업데이트 (BaseEntity의 update() 구현 호출)
+        // 몬스터 상태 업데이트
         for (StaticMonster monster : monsters) {
             monster.update(delta);
         }
@@ -84,7 +96,7 @@ public class EntityManager {
 
         Rectangle playerBounds = player.getBounds();
 
-        // 1. 즉사 박스 충돌 검사 (닿는 즉시 사망 - 시간 제한 없음)
+        // 1. 즉사 박스 충돌 검사
         for (InstantKillBox killBox : killBoxes) {
             if (playerBounds.overlaps(killBox.getBounds())) {
                 player.takeDamage(player.getMaxHealth());
@@ -93,15 +105,13 @@ public class EntityManager {
             }
         }
 
-        // 2. 일반 데미지 및 몬스터 충돌 검사 (시간 제한 적용)
+        // 2. 일반 데미지 및 몬스터 충돌 검사
         damageTimer += delta;
         if (damageTimer >= DAMAGE_CHECK_RATE) {
 
-            // 2-1. StaticMonster 충돌 검사 (시간 제한 적용)
+            // 2-1. StaticMonster 충돌 검사
             for (StaticMonster monster : monsters) {
-                // 몬스터가 살아있고 플레이어와 닿았을 때만 피해 적용
                 if (monster.isAlive() && playerBounds.overlaps(monster.getBounds())) {
-                    // 몬스터가 가진 attackDamage만큼 플레이어에게 피해를 입힙니다.
                     player.takeDamage(monster.getAttackDamage());
 
                     if (!player.isAlive()) {
@@ -111,7 +121,7 @@ public class EntityManager {
                 }
             }
 
-            // 2-2. DamageBox 충돌 검사 (시간 제한 적용)
+            // 2-2. DamageBox 충돌 검사
             for (DamageBox box : damageBoxes) {
                 if (playerBounds.overlaps(box.getBounds())) {
                     player.takeDamage(box.getDamageAmount());
@@ -174,8 +184,6 @@ public class EntityManager {
             interactPromptText = "Press C to Set Checkpoint";
         }
     }
-
-    // --- GameScreen이 렌더링을 위해 사용하는 Getter 메서드 ---
 
     public Array<DamageBox> getDamageBoxes() {
         return damageBoxes;

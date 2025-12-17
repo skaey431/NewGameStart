@@ -1,6 +1,8 @@
 package NewGameStart.NewGame.entities.player;
 
 import NewGameStart.NewGame.entities.BaseEntity;
+import NewGameStart.NewGame.entities.player.states.*; // 상태 패키지 임포트 확인
+import NewGameStart.NewGame.screens.managers.EntityManager; // 추가
 import NewGameStart.NewGame.tools.Constants;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
@@ -15,7 +17,8 @@ public class Player extends BaseEntity {
     private int rightContacts = 0;
     private int headContacts = 0;
 
-    private PlayerState currentState; // PlayerState 인터페이스와 상태 클래스가 존재한다고 가정합니다.
+    private PlayerState currentState;
+    private EntityManager entityManager; // [추가]
 
     public boolean isClinging = false;
     public boolean isDashing = false;
@@ -49,7 +52,6 @@ public class Player extends BaseEntity {
         body.setUserData(this);
         body.setFixedRotation(true);
 
-        // 1. 몸체 Fixture
         PolygonShape main = new PolygonShape();
         main.setAsBox(0.3f, 0.5f);
         FixtureDef fd = new FixtureDef();
@@ -61,7 +63,6 @@ public class Player extends BaseEntity {
         body.createFixture(fd).setUserData("player_main");
         main.dispose();
 
-        // 2. 센서 Fixture (foot, head, left, right)
         FixtureDef sensorFd = new FixtureDef();
         sensorFd.isSensor = true;
         sensorFd.filter.categoryBits = Constants.CATEGORY_PLAYER;
@@ -91,9 +92,13 @@ public class Player extends BaseEntity {
         body.createFixture(sensorFd).setUserData("right");
         rightSensor.dispose();
 
-        this.currentState = new PlayerRunState(); // PlayerRunState가 존재한다고 가정합니다.
+        this.currentState = new PlayerRunState();
         this.currentState.enter(this);
     }
+
+    // [추가된 세터]
+    public void setEntityManager(EntityManager em) { this.entityManager = em; }
+    public EntityManager getEntityManager() { return entityManager; }
 
     public void changeState(PlayerState newState) {
         if (currentState != null) {
@@ -117,11 +122,19 @@ public class Player extends BaseEntity {
             jumpsPerformed = 0;
         }
 
+        // [추가된 공격 입력]
+        if (Gdx.input.isKeyJustPressed(Input.Keys.Z)) {
+            if (!(currentState instanceof PlayerAttackState)) {
+                changeState(new PlayerAttackState());
+                return;
+            }
+        }
+
         boolean left = Gdx.input.isKeyPressed(Input.Keys.LEFT);
         boolean right = Gdx.input.isKeyPressed(Input.Keys.RIGHT);
         boolean dashInput = Gdx.input.isKeyJustPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyJustPressed(Input.Keys.SHIFT_RIGHT);
 
-        if (dashInput && dashCooldownTimer <= 0 && (left || right) && !(currentState instanceof PlayerDashState)) { // PlayerDashState 존재 가정
+        if (dashInput && dashCooldownTimer <= 0 && (left || right) && !(currentState instanceof PlayerDashState)) {
             if (!isOnGround() && dashesPerformed >= MAX_DASHES_AIR) {
                 return;
             }
@@ -133,16 +146,13 @@ public class Player extends BaseEntity {
         currentState.update(this, delta);
 
         if (!isDashing) {
-            if (!isOnGround() && !(currentState instanceof PlayerJumpState) && !(currentState instanceof PlayerClingState)) { // PlayerJumpState, PlayerClingState 존재 가정
+            if (!isOnGround() && !(currentState instanceof PlayerJumpState) && !(currentState instanceof PlayerClingState) && !(currentState instanceof PlayerAttackState)) {
                 changeState(new PlayerJumpState());
                 return;
             }
         }
     }
 
-    /**
-     * 리스폰 시 호출되어 플레이어의 모든 능력 상태를 초기화합니다.
-     */
     public void resetAbilities() {
         this.dashesPerformed = 0;
         this.jumpsPerformed = 0;
@@ -150,19 +160,13 @@ public class Player extends BaseEntity {
         this.dashCooldownTimer = 0f;
         this.isClinging = false;
         this.isDashing = false;
-        this.changeState(new PlayerIdleState()); // PlayerIdleState 존재 가정
+        this.changeState(new PlayerIdleState());
     }
 
-    /**
-     * 플레이어의 체력을 최대치로 회복시킵니다.
-     */
     public void resetHealth() {
-        // BaseEntity의 heal() 또는 직접 필드에 접근하여 초기화
         this.currentHealth = getMaxHealth();
-        this.isAlive = true; // BaseEntity의 die()로 인해 false가 되었을 수 있으므로 복구
+        this.isAlive = true;
     }
-
-    // BaseEntity의 takeDamage(float damage) 메서드를 사용합니다.
 
     public com.badlogic.gdx.math.Rectangle getBounds() {
         Vector2 position = body.getPosition();
@@ -176,6 +180,15 @@ public class Player extends BaseEntity {
             height
         );
         return tempBounds;
+    }
+
+    // [공격 히트박스 추가 - getBounds() 로직 활용]
+    public com.badlogic.gdx.math.Rectangle getAttackHitbox() {
+        Vector2 position = body.getPosition();
+        boolean facingRight = Gdx.input.isKeyPressed(Input.Keys.RIGHT) || (!Gdx.input.isKeyPressed(Input.Keys.LEFT));
+        float range = 1.2f;
+        float x = facingRight ? position.x : position.x - range;
+        return new com.badlogic.gdx.math.Rectangle(x, position.y - 0.5f, range, 1.0f);
     }
 
     public Body getBody() { return body; }
