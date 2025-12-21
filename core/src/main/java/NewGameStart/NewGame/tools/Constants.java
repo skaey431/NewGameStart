@@ -10,6 +10,11 @@ public class Constants {
     public static final short CATEGORY_WALL = 0x0004;
     public static final short CATEGORY_SPECIAL_WALL = 0x0008;
 
+    public static final short BIT_PLAYER = 1;    // 0001
+    public static final short BIT_GROUND = 2;    // 0010
+    public static final short BIT_WALL = 4;      // 0100
+    public static final short BIT_MONSTER = 8;   // 1000
+
     // 플레이어가 충돌할 수 있는 대상: 땅, 일반 벽, 특수 벽
     public static final short MASK_PLAYER = CATEGORY_GROUND | CATEGORY_WALL | CATEGORY_SPECIAL_WALL;
 
