@@ -1,5 +1,6 @@
-package NewGameStart.NewGame.entities.player;
+package NewGameStart.NewGame.entities.player.states;
 
+import NewGameStart.NewGame.entities.player.Player;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.math.Vector2;
