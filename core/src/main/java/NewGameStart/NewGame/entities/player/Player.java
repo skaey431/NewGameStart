@@ -39,6 +39,7 @@ public class Player extends BaseEntity {
     public final float JUMP_FORCE = 3.5f;
     public final float WALL_JUMP_HORIZONTAL = 3f;
     public final float WALL_JUMP_VERTICAL = 8f;
+    public boolean facingRight;
 
     private final com.badlogic.gdx.math.Rectangle tempBounds = new com.badlogic.gdx.math.Rectangle();
 
@@ -185,10 +186,14 @@ public class Player extends BaseEntity {
     // [공격 히트박스 추가 - getBounds() 로직 활용]
     public com.badlogic.gdx.math.Rectangle getAttackHitbox() {
         Vector2 position = body.getPosition();
-        boolean facingRight = Gdx.input.isKeyPressed(Input.Keys.RIGHT) || (!Gdx.input.isKeyPressed(Input.Keys.LEFT));
+        facingRight = Gdx.input.isKeyPressed(Input.Keys.RIGHT) || (!Gdx.input.isKeyPressed(Input.Keys.LEFT));
         float range = 1.2f;
         float x = facingRight ? position.x : position.x - range;
         return new com.badlogic.gdx.math.Rectangle(x, position.y - 0.5f, range, 1.0f);
+    }
+
+    public boolean isAttacking() {
+        return currentState instanceof PlayerAttackState;
     }
 
     public Body getBody() { return body; }

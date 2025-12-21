@@ -167,6 +167,16 @@ public class GameScreen implements Screen {
             0.6f, 1.0f
         );
 
+        if (player.isAttacking()){
+            shapeRenderer.rect(
+                player.getAttackHitbox().x ,
+                player.getAttackHitbox().y ,
+                player.getAttackHitbox().width ,
+                player.getAttackHitbox().height
+            );
+        }
+
+
         // 2. 즉사 박스 시각화
         shapeRenderer.setColor(1f, 0f, 0f, 0.8f);
         for (InstantKillBox killBox : entityManager.getKillBoxes()) {
