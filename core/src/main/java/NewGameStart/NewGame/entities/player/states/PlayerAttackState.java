@@ -9,9 +9,6 @@ public class PlayerAttackState implements PlayerState {
 
     @Override
     public void enter(Player player) {
-        // 공격 시 이동 정지 (매달리기 해제 로직 포함)
-        player.isClinging = false;
-        player.getBody().setLinearVelocity(0, player.getBody().getLinearVelocity().y);
         timer = 0f;
         damageApplied = false;
     }
