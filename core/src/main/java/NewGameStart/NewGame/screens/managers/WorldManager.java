@@ -1,5 +1,6 @@
 package NewGameStart.NewGame.screens.managers;
 
+import NewGameStart.NewGame.tools.WorldContactListener; // 추가
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.World;
 
@@ -7,15 +8,15 @@ public class WorldManager {
     private World world;
 
     public WorldManager() {
-        // 중력 설정 및 월드 생성
+        // 중력 설정 (사용자님 원본 유지)
         world = new World(new Vector2(0, -9.8f), true);
 
-        // 기존의 createGround()는 MapManager가 수행하므로 삭제되었습니다.
+        // [중요] 프로젝트에 없던 ContactListener를 여기서 등록합니다.
+        world.setContactListener(new WorldContactListener());
     }
 
     public void update(float delta) {
-        // 물리 연산 스텝 수행
-        world.step(1/60f, 6, 2);
+        world.step(delta, 6, 2);
     }
 
     public World getWorld() { return world; }

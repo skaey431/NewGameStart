@@ -53,40 +53,52 @@ public class Player extends BaseEntity {
         body.setUserData(this);
         body.setFixedRotation(true);
 
+        // 1. 메인 몸체 픽스처
         PolygonShape main = new PolygonShape();
         main.setAsBox(0.3f, 0.5f);
         FixtureDef fd = new FixtureDef();
         fd.shape = main;
         fd.density = 1f;
         fd.friction = 0.3f;
+
+        // 플레이어 몸체가 땅(BIT_GROUND)을 통과하지 않게 설정
         fd.filter.categoryBits = Constants.CATEGORY_PLAYER;
         fd.filter.maskBits = Constants.MASK_PLAYER;
+
         body.createFixture(fd).setUserData("player_main");
         main.dispose();
 
+        // 2. 센서 공통 설정
         FixtureDef sensorFd = new FixtureDef();
         sensorFd.isSensor = true;
         sensorFd.filter.categoryBits = Constants.CATEGORY_PLAYER;
+
+        // [핵심] 센서가 땅(BIT_GROUND)을 감지할 수 있도록 마스크 설정
+        // MASK_PLAYER에 BIT_GROUND가 포함되어 있어야 합니다.
         sensorFd.filter.maskBits = Constants.MASK_PLAYER;
 
+        // 발 센서 (점프 가능 여부 판정)
         PolygonShape foot = new PolygonShape();
         foot.setAsBox(0.25f, 0.05f, new Vector2(0, -0.55f), 0);
         sensorFd.shape = foot;
         body.createFixture(sensorFd).setUserData("foot");
         foot.dispose();
 
+        // 머리 센서 (천장 충돌)
         PolygonShape head = new PolygonShape();
         head.setAsBox(0.25f, 0.05f, new Vector2(0, 0.55f), 0);
         sensorFd.shape = head;
         body.createFixture(sensorFd).setUserData("head");
         head.dispose();
 
+        // 왼쪽 센서 (벽 타기/충돌)
         PolygonShape leftSensor = new PolygonShape();
         leftSensor.setAsBox(0.05f, 0.4f, new Vector2(-0.35f, 0), 0);
         sensorFd.shape = leftSensor;
         body.createFixture(sensorFd).setUserData("left");
         leftSensor.dispose();
 
+        // 오른쪽 센서 (벽 타기/충돌)
         PolygonShape rightSensor = new PolygonShape();
         rightSensor.setAsBox(0.05f, 0.4f, new Vector2(0.35f, 0), 0);
         sensorFd.shape = rightSensor;
