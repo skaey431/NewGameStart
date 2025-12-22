@@ -23,13 +23,24 @@ public class WorldContactListener implements ContactListener {
     }
 
     private void processSensorContact(Fixture a, Fixture b, boolean begin) {
-        // 한쪽이 플레이어 센서(foot, left, right, head)이고 다른 한쪽이 지형("ground")인 경우
-        if (isPlayerSensor(a) && "ground".equals(b.getUserData())) {
+        // 상대방의 UserData가 "ground" 또는 "wall"인지 확인
+        Object dataA = a.getUserData();
+        Object dataB = b.getUserData();
+
+        if (isPlayerSensor(a) && isLandable(dataB)) {
             updatePlayerSensor(a, begin);
-        } else if (isPlayerSensor(b) && "ground".equals(a.getUserData())) {
+        } else if (isPlayerSensor(b) && isLandable(dataA)) {
             updatePlayerSensor(b, begin);
         }
     }
+
+    private boolean isLandable(Object userData) {
+        if (!(userData instanceof String)) return false;
+        String s = (String) userData;
+        return "ground".equals(s) || "wall".equals(s);
+    }
+
+    // isPlayerSensor 및 updatePlayerSensor 메서드는 이전과 동일
 
     private boolean isPlayerSensor(Fixture f) {
         Object data = f.getUserData();
