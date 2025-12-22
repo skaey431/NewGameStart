@@ -4,19 +4,14 @@ import NewGameStart.NewGame.entities.player.Player;
 import com.badlogic.gdx.physics.box2d.*;
 
 public class WorldContactListener implements ContactListener {
+
     @Override
     public void beginContact(Contact contact) {
         Fixture fixA = contact.getFixtureA();
         Fixture fixB = contact.getFixtureB();
 
-        // 발 센서와 땅(ground)의 접촉 판정
-        if ("foot".equals(fixA.getUserData()) && "ground".equals(fixB.getUserData())) {
-            ((Player) fixA.getBody().getUserData()).incrementContact("foot");
-        } else if ("foot".equals(fixB.getUserData()) && "ground".equals(fixA.getUserData())) {
-            ((Player) fixB.getBody().getUserData()).incrementContact("foot");
-        }
-
-        // 왼쪽/오른쪽 벽 센서 판정도 같은 방식으로 추가 가능
+        // 플레이어 센서와 지형("ground")의 접촉 판정
+        processSensorContact(fixA, fixB, true);
     }
 
     @Override
@@ -24,20 +19,36 @@ public class WorldContactListener implements ContactListener {
         Fixture fixA = contact.getFixtureA();
         Fixture fixB = contact.getFixtureB();
 
-        if ("foot".equals(fixA.getUserData()) && "ground".equals(fixB.getUserData())) {
-            ((Player) fixA.getBody().getUserData()).decrementContact("foot");
-        } else if ("foot".equals(fixB.getUserData()) && "ground".equals(fixA.getUserData())) {
-            ((Player) fixB.getBody().getUserData()).decrementContact("foot");
+        processSensorContact(fixA, fixB, false);
+    }
+
+    private void processSensorContact(Fixture a, Fixture b, boolean begin) {
+        // 한쪽이 플레이어 센서(foot, left, right, head)이고 다른 한쪽이 지형("ground")인 경우
+        if (isPlayerSensor(a) && "ground".equals(b.getUserData())) {
+            updatePlayerSensor(a, begin);
+        } else if (isPlayerSensor(b) && "ground".equals(a.getUserData())) {
+            updatePlayerSensor(b, begin);
         }
-        if ("right".equals(fixA.getUserData()) && "wall".equals(fixB.getUserData())) {
-            ((Player) fixA.getBody().getUserData()).decrementContact("right");
-        } else if ("right".equals(fixB.getUserData()) && "wall".equals(fixA.getUserData())) {
-            ((Player) fixB.getBody().getUserData()).decrementContact("wall");
-        }
-        if ("left".equals(fixA.getUserData()) && "wall".equals(fixB.getUserData())) {
-            ((Player) fixA.getBody().getUserData()).decrementContact("left");
-        } else if ("left".equals(fixB.getUserData()) && "wall".equals(fixA.getUserData())) {
-            ((Player) fixB.getBody().getUserData()).decrementContact("wall");
+    }
+
+    private boolean isPlayerSensor(Fixture f) {
+        Object data = f.getUserData();
+        if (!(data instanceof String)) return false;
+        String s = (String) data;
+        // 플레이어의 모든 센서 이름을 체크
+        return s.equals("foot") || s.equals("left") || s.equals("right") || s.equals("head");
+    }
+
+    private void updatePlayerSensor(Fixture sensorFixture, boolean begin) {
+        Player player = (Player) sensorFixture.getBody().getUserData();
+        String sensorName = (String) sensorFixture.getUserData();
+
+        if (player != null) {
+            if (begin) {
+                player.incrementContact(sensorName);
+            } else {
+                player.decrementContact(sensorName);
+            }
         }
     }
 

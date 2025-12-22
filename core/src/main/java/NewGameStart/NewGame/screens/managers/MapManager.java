@@ -21,20 +21,20 @@ public class MapManager {
         if (tiledMap.getLayers().get("ground") != null) {
             for (MapObject object : tiledMap.getLayers().get("ground").getObjects()) {
                 if (object instanceof RectangleMapObject) {
-                    createGround((RectangleMapObject) object);
+                    createPhysicsObject((RectangleMapObject) object);
                 }
             }
         }
         if (tiledMap.getLayers().get("wall") != null) {
             for (MapObject object : tiledMap.getLayers().get("wall").getObjects()) {
                 if (object instanceof RectangleMapObject) {
-                    createWall((RectangleMapObject) object);
+                    createPhysicsObject((RectangleMapObject) object);
                 }
             }
         }
     }
 
-    private void createGround(RectangleMapObject rectObject) {
+    private void createPhysicsObject(RectangleMapObject rectObject) {
         Rectangle rect = rectObject.getRectangle();
         BodyDef bdef = new BodyDef();
         bdef.type = BodyDef.BodyType.StaticBody;
@@ -46,36 +46,23 @@ public class MapManager {
 
         FixtureDef fdef = new FixtureDef();
         fdef.shape = shape;
-        fdef.friction = 0.5f;
 
-        // 중요: 이 객체의 카테고리를 BIT_GROUND로 설정
-        fdef.filter.categoryBits = Constants.BIT_GROUND;
-        // 모든 것과 부딪히도록 설정 (-1)
+        // Tiled에서 설정한 "type" 속성을 가져옴 (없으면 기본값 "ground")
+        String type = rectObject.getProperties().get("type", "ground", String.class);
+
+        if ("wall".equals(type)) {
+            fdef.filter.categoryBits = Constants.BIT_WALL;
+            fdef.friction = 0.0f; // 벽은 미끄럽게 설정 (벽타기 로직을 위해)
+        } if ("ground".equals(type)){
+            fdef.filter.categoryBits = Constants.BIT_GROUND;
+            fdef.friction = 0.5f; // 바닥은 마찰력 부여
+            System.out.println("ground");
+        }
+
         fdef.filter.maskBits = -1;
 
-        body.createFixture(fdef).setUserData("ground");
-        shape.dispose();
-    }
-    private void createWall(RectangleMapObject rectObject) {
-        Rectangle rect = rectObject.getRectangle();
-        BodyDef bdef = new BodyDef();
-        bdef.type = BodyDef.BodyType.StaticBody;
-        bdef.position.set((rect.x + rect.width / 2) / Constants.PPM, (rect.y + rect.height / 2) / Constants.PPM);
-
-        Body body = world.createBody(bdef);
-        PolygonShape shape = new PolygonShape();
-        shape.setAsBox(rect.width / 2 / Constants.PPM, rect.height / 2 / Constants.PPM);
-
-        FixtureDef fdef = new FixtureDef();
-        fdef.shape = shape;
-        fdef.friction = 0.5f;
-
-        // 중요: 이 객체의 카테고리를 BIT_GROUND로 설정
-        fdef.filter.categoryBits = Constants.BIT_WALL;
-        // 모든 것과 부딪히도록 설정 (-1)
-        fdef.filter.maskBits = -1;
-
-        body.createFixture(fdef).setUserData("Wall");
+        // 이제 userData에 "ground" 또는 "wall"이 들어감
+        body.createFixture(fdef).setUserData(type);
         shape.dispose();
     }
 
