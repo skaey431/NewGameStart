@@ -7,6 +7,7 @@ import com.badlogic.gdx.maps.tiled.TiledMap;
 import com.badlogic.gdx.maps.tiled.TmxMapLoader;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.physics.box2d.*;
+import com.badlogic.gdx.utils.Array;
 
 public class MapManager {
     private TiledMap tiledMap;
@@ -16,17 +17,19 @@ public class MapManager {
         this.world = world;
     }
 
+    /**
+     * 새 맵을 로드합니다. 호출 시 기존의 모든 StaticBody(지형)를 월드에서 제거합니다.
+     */
     public void loadMap(String fileName) {
+        // 1. 기존 리소스 해제 및 물리 바디 제거
+        clearCurrentMap();
+
+        // 2. 새 TMX 파일 로드
         this.tiledMap = new TmxMapLoader().load(fileName);
-        if (tiledMap.getLayers().get("ground") != null) {
-            for (MapObject object : tiledMap.getLayers().get("ground").getObjects()) {
-                if (object instanceof RectangleMapObject) {
-                    createPhysicsObject((RectangleMapObject) object);
-                }
-            }
-        }
-        if (tiledMap.getLayers().get("wall") != null) {
-            for (MapObject object : tiledMap.getLayers().get("wall").getObjects()) {
+
+        // 3. 'collision' 레이어 분석 및 물리 객체 생성
+        if (tiledMap.getLayers().get("collision") != null) {
+            for (MapObject object : tiledMap.getLayers().get("collision").getObjects()) {
                 if (object instanceof RectangleMapObject) {
                     createPhysicsObject((RectangleMapObject) object);
                 }
@@ -47,26 +50,47 @@ public class MapManager {
         FixtureDef fdef = new FixtureDef();
         fdef.shape = shape;
 
-        // Tiled에서 설정한 "type" 속성을 가져옴 (없으면 기본값 "ground")
+        // Tiled 속성에서 "type"을 읽어 ground와 wall 구분
         String type = rectObject.getProperties().get("type", "ground", String.class);
 
         if ("wall".equals(type)) {
             fdef.filter.categoryBits = Constants.BIT_WALL;
-            fdef.friction = 0.0f; // 벽은 미끄럽게 설정 (벽타기 로직을 위해)
-        } if ("ground".equals(type)){
+            fdef.friction = 0.0f; // 벽은 매끄럽게
+        } else {
             fdef.filter.categoryBits = Constants.BIT_GROUND;
             fdef.friction = 0.5f; // 바닥은 마찰력 부여
-            System.out.println("ground");
         }
 
-        fdef.filter.maskBits = -1;
+        fdef.filter.maskBits = -1; // 모든 객체와 충돌 가능
 
-        // 이제 userData에 "ground" 또는 "wall"이 들어감
         body.createFixture(fdef).setUserData(type);
         shape.dispose();
     }
 
+    /**
+     * 현재 월드에 생성된 모든 지형 바디를 삭제하고 맵 리소스를 비웁니다.
+     */
+    public void clearCurrentMap() {
+        if (tiledMap != null) {
+            Array<Body> bodies = new Array<>();
+            world.getBodies(bodies);
+            for (Body body : bodies) {
+                // StaticBody만 골라서 삭제 (플레이어나 몬스터는 Dynamic이므로 유지됨)
+                if (body.getType() == BodyDef.BodyType.StaticBody) {
+                    world.destroyBody(body);
+                }
+            }
+            tiledMap.dispose();
+            tiledMap = null;
+        }
+    }
+
     public void dispose() {
-        if (tiledMap != null) tiledMap.dispose();
+        clearCurrentMap();
+    }
+
+    // MapManager.java 클래스 맨 아래에 추가
+    public TiledMap getTiledMap() {
+        return tiledMap;
     }
 }

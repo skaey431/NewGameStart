@@ -63,4 +63,5 @@ public abstract class BaseEntity {
         isAlive = false;
         Gdx.app.log("BaseEntity", "Entity has died.");
     }
+
 }

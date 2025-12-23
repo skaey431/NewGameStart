@@ -35,10 +35,8 @@
 </data>
  </layer>
  <objectgroup id="2" name="ground">
-  <object id="1" x="4.90547" y="928.278" width="1876.34" height="24.5273"/>
-  <object id="2" x="1020" y="44"/>
-  <object id="3" x="568" y="52"/>
-  <object id="30" x="352" y="628" width="74.6667" height="316"/>
+  <object id="1" type="ground" x="4.90547" y="928.278" width="1876.34" height="24.5273"/>
+  <object id="30" type="ground" x="352" y="628" width="74.6667" height="316"/>
  </objectgroup>
  <objectgroup id="5" name="wall" class="wall">
   <object id="33" type="wall" x="618.089" y="429.228" width="49.0547" height="213.388"/>

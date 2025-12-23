@@ -19,6 +19,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
 import com.badlogic.gdx.scenes.scene2d.Stage;
@@ -39,6 +40,9 @@ public class GameScreen implements Screen {
     private EntityManager entityManager;
     private MapManager mapManager;
 
+    // 맵 이미지를 실제로 그리기 위해 추가된 렌더러
+    private OrthogonalTiledMapRenderer mapRenderer;
+
     private Stage stage;
     private Skin skin;
     private HealthBar playerHealthBar;
@@ -47,6 +51,8 @@ public class GameScreen implements Screen {
 
     private static final float WORLD_WIDTH = 16f;
     private static final float WORLD_HEIGHT = 9f;
+
+    private int currentStage = 1;
 
     public GameScreen(Main game) {
         this.game = game;
@@ -62,11 +68,9 @@ public class GameScreen implements Screen {
         // 1. 플레이어 생성
         createPlayer();
 
-        // 2. 맵 로드 (기존 createDefaultStage 대체/병행)
+        // 2. 맵 로드 및 렌더러 초기화
         this.mapManager = new MapManager(worldManager.getWorld());
-        this.mapManager.loadMap("maps/stage1.tmx");
-
-        // worldManager.createDefaultStage(); // 필요 시 유지
+        loadStage(currentStage);
 
         loadSkin();
         setupUI();
@@ -75,6 +79,16 @@ public class GameScreen implements Screen {
         this.gameStateManager = new GameStateManager(game, player, gameOverLabel);
         this.gameStateManager.setCheckpoint(3f, 5f);
         this.entityManager = new EntityManager(gameStateManager, player);
+    }
+
+    private void loadStage(int stageNum) {
+        String mapPath = "maps/stage" + stageNum + ".tmx";
+        mapManager.loadMap(mapPath);
+
+        // 이전 렌더러 해제 후 새 맵 렌더러 생성
+        if (mapRenderer != null) mapRenderer.dispose();
+        // 1 / Constants.PPM 비율로 맵 이미지를 물리 크기와 동기화
+        mapRenderer = new OrthogonalTiledMapRenderer(mapManager.getTiledMap(), 1 / Constants.PPM);
     }
 
     private void createPlayer() {
@@ -130,14 +144,21 @@ public class GameScreen implements Screen {
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
+        // 1. 실제 맵 이미지 렌더링
+        if (mapRenderer != null) {
+            mapRenderer.setView(camera);
+            mapRenderer.render();
+        }
+
+        // 2. 물리 디버그 라인 렌더링
         debugRenderer.render(worldManager.getWorld(), camera.combined);
 
+        // 3. 원본 시각화 로직 (ShapeRenderer)
         shapeRenderer.setProjectionMatrix(camera.combined);
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
-        // --- 시각화 로직 ---
         Body pb = player.getBody();
         shapeRenderer.setColor(isGameOver ? new Color(1, 1, 1, 0.5f) : Color.WHITE);
         shapeRenderer.rect(pb.getPosition().x - 0.3f, pb.getPosition().y - 0.5f, 0.6f, 1.0f);
@@ -172,7 +193,10 @@ public class GameScreen implements Screen {
 
         shapeRenderer.end();
 
-        interactPromptLabel.setVisible(entityManager.isInteractPromptVisible());
+        // 4. UI 및 스테이지 렌더링
+        if (interactPromptLabel != null) {
+            interactPromptLabel.setVisible(entityManager.isInteractPromptVisible());
+        }
         stage.act(delta);
         stage.draw();
     }
@@ -193,10 +217,25 @@ public class GameScreen implements Screen {
     @Override
     public void dispose() {
         worldManager.dispose();
-        if (mapManager != null) mapManager.dispose();
+
         debugRenderer.dispose();
         shapeRenderer.dispose();
         if (skin != null) skin.dispose();
         if (stage != null) stage.dispose();
+    }
+
+    public void nextStage() {
+        currentStage++;
+        // 엔티티 매니저에서 이전 스테이지의 몬스터/함정 물리 바디 제거
+        entityManager.clearEntities();
+
+        // 맵 매니저에서 새 맵 로드 및 렌더러 갱신
+        loadStage(currentStage);
+
+        // 플레이어 위치 초기화 및 상태 리셋
+        player.getBody().setTransform(3f, 5f, 0);
+        player.resetAbilities();
+
+        System.out.println("Stage " + currentStage + " Loaded!");
     }
 }

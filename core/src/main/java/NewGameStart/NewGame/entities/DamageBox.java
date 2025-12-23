@@ -1,36 +1,38 @@
 package NewGameStart.NewGame.entities;
 
+import NewGameStart.NewGame.tools.Constants;
 import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.physics.box2d.*;
 
-/**
- * 플레이어에게 데미지를 입히는 고정된 위험 구역(예: 용암, 독성 가스).
- */
 public class DamageBox {
-
-    // 구역의 위치와 크기를 나타내는 충돌 경계
+    private Body body;
     private Rectangle bounds;
-    // 이 구역이 입히는 데미지 양
-    private final float damageAmount;
-    // 데미지를 입힐 간격 (초)
-    private final float damageInterval;
+    private float damageAmount;
 
-    public DamageBox(float x, float y, float width, float height, float damageAmount, float damageInterval) {
-        this.bounds = new Rectangle(x, y, width, height);
+    public DamageBox(World world, float x, float y, float w, float h, float damageAmount) {
         this.damageAmount = damageAmount;
-        this.damageInterval = damageInterval;
+        this.bounds = new Rectangle(x, y, w, h);
+
+        BodyDef bdef = new BodyDef();
+        bdef.position.set((x + w / 2) / Constants.PPM, (y + h / 2) / Constants.PPM);
+        bdef.type = BodyDef.BodyType.StaticBody;
+        this.body = world.createBody(bdef);
+        this.body.setUserData(this);
+
+        PolygonShape shape = new PolygonShape();
+        shape.setAsBox(w / 2 / Constants.PPM, h / 2 / Constants.PPM);
+
+        FixtureDef fdef = new FixtureDef();
+        fdef.shape = shape;
+        fdef.isSensor = true;
+        fdef.filter.categoryBits = Constants.BIT_HAZARD;
+        fdef.filter.maskBits = Constants.CATEGORY_PLAYER;
+
+        body.createFixture(fdef).setUserData("damage");
+        shape.dispose();
     }
 
-    public Rectangle getBounds() {
-        return bounds;
-    }
-
-    public float getDamageAmount() {
-        return damageAmount;
-    }
-
-    public float getDamageInterval() {
-        return damageInterval;
-    }
-
-    // 필요에 따라 렌더링을 위한 메서드를 추가할 수 있습니다.
+    public Body getBody() { return body; }
+    public Rectangle getBounds() { return bounds; }
+    public float getDamageAmount() { return damageAmount; }
 }
