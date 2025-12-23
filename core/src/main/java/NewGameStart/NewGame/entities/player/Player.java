@@ -214,20 +214,43 @@ public class Player extends BaseEntity {
     public boolean isTouchingRight() { return rightContacts > 0; }
     public boolean isTouchingCeiling() { return headContacts > 0; }
 
-    public void incrementContact(String sensor) {
+    // Player.java 내부 수정 (생략 없이 해당 메서드 교체)
+
+    public void incrementContact(String sensor, String targetType) {
         switch (sensor) {
-            case "foot": footContacts++; break;
-            case "left": leftContacts++; break;
-            case "right": rightContacts++; break;
-            case "head": headContacts++; break;
+            case "foot":
+                // 발은 바닥(ground)이든 벽(wall) 상단이든 닿으면 접지 상태로 인정
+                footContacts++;
+                break;
+            case "left":
+                // 왼쪽 센서가 "wall"에 닿았을 때만 카운트 증가 (벽타기 가능)
+                if ("wall".equals(targetType)) leftContacts++;
+                break;
+            case "right":
+                // 오른쪽 센서가 "wall"에 닿았을 때만 카운트 증가 (벽타기 가능)
+                if ("wall".equals(targetType)) rightContacts++;
+                break;
+            case "head":
+                headContacts++;
+                break;
         }
     }
-    public void decrementContact(String sensor) {
+
+    public void decrementContact(String sensor, String targetType) {
         switch (sensor) {
-            case "foot": footContacts = Math.max(0, footContacts - 1); break;
-            case "left": leftContacts = Math.max(0, leftContacts - 1); break;
-            case "right": rightContacts = Math.max(0, rightContacts - 1); break;
-            case "head": headContacts = Math.max(0, headContacts - 1); break;
+            case "foot":
+                footContacts = Math.max(0, footContacts - 1);
+                break;
+            case "left":
+                if ("wall".equals(targetType)) leftContacts = Math.max(0, leftContacts - 1);
+                break;
+            case "right":
+                if ("wall".equals(targetType)) rightContacts = Math.max(0, rightContacts - 1);
+                break;
+            case "head":
+                headContacts = Math.max(0, headContacts - 1);
+                break;
         }
     }
+
 }

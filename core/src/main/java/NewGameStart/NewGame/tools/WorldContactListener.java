@@ -7,59 +7,48 @@ public class WorldContactListener implements ContactListener {
 
     @Override
     public void beginContact(Contact contact) {
-        Fixture fixA = contact.getFixtureA();
-        Fixture fixB = contact.getFixtureB();
-
-        // 플레이어 센서와 지형("ground")의 접촉 판정
-        processSensorContact(fixA, fixB, true);
+        handleContact(contact, true);
     }
 
     @Override
     public void endContact(Contact contact) {
+        handleContact(contact, false);
+    }
+
+    private void handleContact(Contact contact, boolean begin) {
         Fixture fixA = contact.getFixtureA();
         Fixture fixB = contact.getFixtureB();
 
-        processSensorContact(fixA, fixB, false);
-    }
+        Object dataA = fixA.getUserData();
+        Object dataB = fixB.getUserData();
 
-    private void processSensorContact(Fixture a, Fixture b, boolean begin) {
-        // 상대방의 UserData가 "ground" 또는 "wall"인지 확인
-        Object dataA = a.getUserData();
-        Object dataB = b.getUserData();
-
-        if (isPlayerSensor(a) && isLandable(dataB)) {
-            updatePlayerSensor(a, begin);
-        } else if (isPlayerSensor(b) && isLandable(dataA)) {
-            updatePlayerSensor(b, begin);
+        // A가 플레이어 센서이고 B가 지형(ground/wall)인 경우
+        if (isPlayerSensor(dataA) && isTerrain(dataB)) {
+            updatePlayer(fixA, (String) dataB, begin);
+        }
+        // B가 플레이어 센서이고 A가 지형(ground/wall)인 경우
+        else if (isPlayerSensor(dataB) && isTerrain(dataA)) {
+            updatePlayer(fixB, (String) dataA, begin);
         }
     }
 
-    private boolean isLandable(Object userData) {
-        if (!(userData instanceof String)) return false;
-        String s = (String) userData;
-        return "ground".equals(s) || "wall".equals(s);
-    }
-
-    // isPlayerSensor 및 updatePlayerSensor 메서드는 이전과 동일
-
-    private boolean isPlayerSensor(Fixture f) {
-        Object data = f.getUserData();
+    private boolean isPlayerSensor(Object data) {
         if (!(data instanceof String)) return false;
         String s = (String) data;
-        // 플레이어의 모든 센서 이름을 체크
         return s.equals("foot") || s.equals("left") || s.equals("right") || s.equals("head");
     }
 
-    private void updatePlayerSensor(Fixture sensorFixture, boolean begin) {
+    private boolean isTerrain(Object data) {
+        return "ground".equals(data) || "wall".equals(data);
+    }
+
+    private void updatePlayer(Fixture sensorFixture, String terrainType, boolean begin) {
         Player player = (Player) sensorFixture.getBody().getUserData();
         String sensorName = (String) sensorFixture.getUserData();
 
         if (player != null) {
-            if (begin) {
-                player.incrementContact(sensorName);
-            } else {
-                player.decrementContact(sensorName);
-            }
+            if (begin) player.incrementContact(sensorName, terrainType);
+            else player.decrementContact(sensorName, terrainType);
         }
     }
 
