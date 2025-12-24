@@ -28,8 +28,16 @@ public class MapManager {
         this.tiledMap = new TmxMapLoader().load(fileName);
 
         // 3. 'collision' 레이어 분석 및 물리 객체 생성
-        if (tiledMap.getLayers().get("collision") != null) {
-            for (MapObject object : tiledMap.getLayers().get("collision").getObjects()) {
+
+        if (tiledMap.getLayers().get("ground") != null) {
+            for (MapObject object : tiledMap.getLayers().get("ground").getObjects()) {
+                if (object instanceof RectangleMapObject) {
+                    createPhysicsObject((RectangleMapObject) object);
+                }
+            }
+        }
+        if (tiledMap.getLayers().get("wall") != null) {
+            for (MapObject object : tiledMap.getLayers().get("wall").getObjects()) {
                 if (object instanceof RectangleMapObject) {
                     createPhysicsObject((RectangleMapObject) object);
                 }
