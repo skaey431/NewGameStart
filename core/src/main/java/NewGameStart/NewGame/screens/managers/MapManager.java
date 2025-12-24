@@ -1,6 +1,12 @@
 package NewGameStart.NewGame.screens.managers;
 
+import NewGameStart.NewGame.entities.Checkpoint;
+import NewGameStart.NewGame.entities.DamageBox;
+import NewGameStart.NewGame.entities.InstantKillBox;
+import NewGameStart.NewGame.entities.monster.StaticMonster;
 import NewGameStart.NewGame.tools.Constants;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.maps.MapLayer;
 import com.badlogic.gdx.maps.MapObject;
 import com.badlogic.gdx.maps.objects.RectangleMapObject;
 import com.badlogic.gdx.maps.tiled.TiledMap;
@@ -17,29 +23,45 @@ public class MapManager {
         this.world = world;
     }
 
-    /**
-     * 새 맵을 로드합니다. 호출 시 기존의 모든 StaticBody(지형)를 월드에서 제거합니다.
-     */
-    public void loadMap(String fileName) {
-        // 1. 기존 리소스 해제 및 물리 바디 제거
+    // [수정] EntityManager를 파라미터로 추가하여 엔티티 자동 스폰 연동
+    public void loadMap(String fileName, EntityManager entityManager) {
         clearCurrentMap();
-
-        // 2. 새 TMX 파일 로드
         this.tiledMap = new TmxMapLoader().load(fileName);
 
-        // 3. 'collision' 레이어 분석 및 물리 객체 생성
-
-        if (tiledMap.getLayers().get("ground") != null) {
-            for (MapObject object : tiledMap.getLayers().get("ground").getObjects()) {
-                if (object instanceof RectangleMapObject) {
-                    createPhysicsObject((RectangleMapObject) object);
+        // 1. 지형 레이어 생성 (ground, wall)
+        String[] layers = {"ground", "wall"};
+        for (String layerName : layers) {
+            MapLayer layer = tiledMap.getLayers().get(layerName);
+            if (layer != null) {
+                for (MapObject object : layer.getObjects()) {
+                    if (object instanceof RectangleMapObject) {
+                        createPhysicsObject((RectangleMapObject) object);
+                    }
                 }
             }
         }
-        if (tiledMap.getLayers().get("wall") != null) {
-            for (MapObject object : tiledMap.getLayers().get("wall").getObjects()) {
+
+        // 2. [연동] objects 레이어를 분석하여 데미지 필드 및 몬스터 생성
+        MapLayer objectLayer = tiledMap.getLayers().get("objects");
+        if (objectLayer != null && entityManager != null) {
+            for (MapObject object : objectLayer.getObjects()) {
                 if (object instanceof RectangleMapObject) {
-                    createPhysicsObject((RectangleMapObject) object);
+                    Rectangle rect = ((RectangleMapObject) object).getRectangle();
+                    String name = object.getName(); // Tiled에서 설정한 Name 속성
+                    Gdx.app.log("object",name);
+
+                    // MapManager.java의 loadMap 루프 내부 switch/if 문 수정 예시
+                    if ("damage-box".equals(name)) {
+                        entityManager.getDamageBoxes().add(new DamageBox(world, rect.x, rect.y, rect.width, rect.height, 10f));
+                    } else if ("monster".equals(name)) {
+                        entityManager.getMonsters().add(new StaticMonster(world, 100, rect.x, rect.y, rect.width, rect.height, 20f));
+                    } else if ("kill-box".equals(name)) {
+                        // 이제 world를 인자로 넘깁니다.
+                        entityManager.getKillBoxes().add(new InstantKillBox(world, rect.x, rect.y, rect.width, rect.height));
+                    } else if ("checkpoint".equals(name)) {
+                        // 체크포인트도 자동 생성 리스트에 추가
+                        entityManager.getCheckpoints().add(new Checkpoint(world, rect.x, rect.y, rect.width, rect.height));
+                    }
                 }
             }
         }
@@ -58,32 +80,26 @@ public class MapManager {
         FixtureDef fdef = new FixtureDef();
         fdef.shape = shape;
 
-        // Tiled 속성에서 "type"을 읽어 ground와 wall 구분
         String type = rectObject.getProperties().get("type", "ground", String.class);
-
         if ("wall".equals(type)) {
             fdef.filter.categoryBits = Constants.BIT_WALL;
-            fdef.friction = 0.0f; // 벽은 매끄럽게
+            fdef.friction = 0.0f;
         } else {
             fdef.filter.categoryBits = Constants.BIT_GROUND;
-            fdef.friction = 0.5f; // 바닥은 마찰력 부여
+            fdef.friction = 0.5f;
         }
-
-        fdef.filter.maskBits = -1; // 모든 객체와 충돌 가능
+        fdef.filter.maskBits = -1;
 
         body.createFixture(fdef).setUserData(type);
         shape.dispose();
     }
 
-    /**
-     * 현재 월드에 생성된 모든 지형 바디를 삭제하고 맵 리소스를 비웁니다.
-     */
     public void clearCurrentMap() {
         if (tiledMap != null) {
             Array<Body> bodies = new Array<>();
             world.getBodies(bodies);
             for (Body body : bodies) {
-                // StaticBody만 골라서 삭제 (플레이어나 몬스터는 Dynamic이므로 유지됨)
+                // StaticBody만 골라서 삭제 (지형 + Hazard + Monster 센서가 모두 Static이므로 깔끔하게 삭제됨)
                 if (body.getType() == BodyDef.BodyType.StaticBody) {
                     world.destroyBody(body);
                 }
@@ -93,12 +109,6 @@ public class MapManager {
         }
     }
 
-    public void dispose() {
-        clearCurrentMap();
-    }
-
-    // MapManager.java 클래스 맨 아래에 추가
-    public TiledMap getTiledMap() {
-        return tiledMap;
-    }
+    public void dispose() { clearCurrentMap(); }
+    public TiledMap getTiledMap() { return tiledMap; }
 }
